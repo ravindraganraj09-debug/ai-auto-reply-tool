@@ -129,7 +129,28 @@ function isMedicalBusiness(business) {
   return /\b(medical|medicine|pharmacy|chemist|clinic|doctor|hospital|drug)\b/i.test(String(business || ""));
 }
 
-function buildPrompt(message, business) {
+function buildLocaleHint(locale, languageHints, acceptLanguage) {
+  const localeText = String(locale || "").trim();
+  const hintList = Array.isArray(languageHints)
+    ? languageHints.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const acceptLanguageText = String(acceptLanguage || "").trim();
+
+  const parts = [];
+  if (localeText) {
+    parts.push(`Primary locale: ${localeText}`);
+  }
+  if (hintList.length) {
+    parts.push(`Browser languages: ${hintList.join(", ")}`);
+  }
+  if (acceptLanguageText) {
+    parts.push(`Accept-Language header: ${acceptLanguageText}`);
+  }
+
+  return parts.length ? parts.join(" | ") : "No locale hint provided";
+}
+
+function buildPrompt(message, business, localeHint) {
   const trimmedMessage = String(message || "").trim();
   const trimmedBusiness = String(business || "").trim();
   const instructions = [
@@ -148,6 +169,8 @@ function buildPrompt(message, business) {
     "If availability or details are unknown, say you will check or confirm and ask one short follow-up only if needed.",
     "Mention the key product, service, or request from the customer message when natural.",
     "For product or stock questions, give a direct store-style answer such as availability, checking availability, or asking one short follow-up.",
+    "If the customer's message language is short, ambiguous, or unclear, use the locale hint to choose the reply language.",
+    "Support global languages and scripts, including English, Hindi, French, Spanish, Arabic, Japanese, Korean, Chinese, Portuguese, German, Russian, and other languages used by the customer.",
     "Finish with a complete sentence.",
   ];
 
@@ -161,14 +184,17 @@ function buildPrompt(message, business) {
     'Customer message: "you have any cosmetics ?" | Business context: "general store shop" | Good reply: "Yes, we have cosmetics available. Which product do you need? I can confirm the exact availability for you."',
     'Customer message: "i want saridon ?" | Business context: "medical" | Good reply: "Saridon ki availability main check karke confirm karta hoon. Aap quantity bata dijiye."',
     'Customer message: "Avez-vous des cosmétiques ?" | Business context: "general store shop" | Good reply: "Oui, nous avons des cosmétiques. Quel produit cherchez-vous ? Je peux confirmer la disponibilité exacte."',
+    'Customer message: "¿Tienen maquillaje?" | Business context: "general store shop" | Good reply: "Sí, tenemos maquillaje. ¿Qué producto busca? Puedo confirmar la disponibilidad exacta."',
+    'Customer message: "هل لديكم دواء للصداع؟" | Business context: "medical store" | Good reply: "نعم، يمكنني التحقق من توفر دواء للصداع. ما اسم المنتج الذي تحتاجه؟"',
     'Customer message: "明日配達できますか？" | Business context: "flower shop" | Good reply: "明日の配達が可能か確認いたします。お届け先を教えてください。"',
+    `Locale hint: ${localeHint}`,
     `Business context: ${trimmedBusiness || "general customer support business"}`,
     `Customer message: ${trimmedMessage}`,
     "Write only the final reply.",
   ].join("\n");
 }
 
-function buildRepairPrompt(message, business, previousReply) {
+function buildRepairPrompt(message, business, previousReply, localeHint) {
   const trimmedBusiness = String(business || "").trim() || "general customer support business";
 
   return [
@@ -176,10 +202,12 @@ function buildRepairPrompt(message, business, previousReply) {
     "Fix generic greetings, incomplete sentences, weak answers, and missing business context.",
     "Answer the customer's actual question directly.",
     "Keep the reply in the same language and script as the customer's message.",
+    "If the message language is unclear, use the locale hint to choose the correct language.",
     "Do not invent stock, price, delivery, or appointment details if not confirmed.",
     "Keep it short, natural, and complete.",
     'Example style: "Yes, we have cosmetics available. Which product do you need? I can confirm the exact availability for you."',
     "Write only the improved final reply.",
+    `Locale hint: ${localeHint}`,
     `Business context: ${trimmedBusiness}`,
     `Customer message: ${String(message || "").trim()}`,
     `Weak reply: ${String(previousReply || "").trim()}`,
@@ -318,15 +346,15 @@ async function requestGeminiReply(prompt) {
   throw new AiReplyError(lastErrorMessage);
 }
 
-async function generateAiReply(message, business) {
-  const firstReply = await requestGeminiReply(buildPrompt(message, business));
+async function generateAiReply(message, business, localeHint) {
+  const firstReply = await requestGeminiReply(buildPrompt(message, business, localeHint));
 
   if (!responseLooksLowQuality(firstReply)) {
     return firstReply;
   }
 
   try {
-    const repairedReply = await requestGeminiReply(buildRepairPrompt(message, business, firstReply));
+    const repairedReply = await requestGeminiReply(buildRepairPrompt(message, business, firstReply, localeHint));
     return responseLooksLowQuality(repairedReply) ? firstReply : repairedReply;
   } catch (_error) {
     return firstReply;
@@ -475,7 +503,8 @@ app.post("/change-password", requireAuth, async (req, res) => {
 
 app.post("/api/reply", requireAuth, async (req, res) => {
   try {
-    const { message, business } = req.body;
+    const { message, business, locale, languages } = req.body;
+    const localeHint = buildLocaleHint(locale, languages, req.headers["accept-language"]);
 
     if (!isDatabaseReady()) {
       return res.status(503).json({ reply: "Database unavailable. Try again." });
@@ -496,7 +525,7 @@ app.post("/api/reply", requireAuth, async (req, res) => {
 
     let reply;
     try {
-      reply = await generateAiReply(message, business);
+      reply = await generateAiReply(message, business, localeHint);
     } catch (error) {
       const publicMessage = error instanceof AiReplyError
         ? "AI reply unavailable right now. Check Gemini API configuration and try again."

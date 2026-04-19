@@ -271,9 +271,19 @@ function clearHistoryFilters() {
   renderHistory(historyData);
 }
 
+function getUserLanguageContext() {
+  const locale = typeof navigator !== "undefined" ? navigator.language || "" : "";
+  const languages = typeof navigator !== "undefined" && Array.isArray(navigator.languages)
+    ? navigator.languages.filter(Boolean).slice(0, 5)
+    : [];
+
+  return { locale, languages };
+}
+
 async function generateReply() {
   const business = document.getElementById("business").value.trim();
   const message = document.getElementById("message").value.trim();
+  const { locale, languages } = getUserLanguageContext();
 
   if (!message) {
     setAppStatus("Please enter customer message.");
@@ -284,7 +294,7 @@ async function generateReply() {
     "/api/reply",
     {
       method: "POST",
-      body: JSON.stringify({ business, message }),
+      body: JSON.stringify({ business, message, locale, languages }),
     },
     true
   );
