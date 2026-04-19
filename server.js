@@ -123,27 +123,61 @@ function toPublicUser(user) {
   };
 }
 
+const LOW_QUALITY_ENDING_RE = /\b(of|for|with|at|to|and|or)\.$/i;
+
+function isMedicalBusiness(business) {
+  return /\b(medical|medicine|pharmacy|chemist|clinic|doctor|hospital|drug)\b/i.test(String(business || ""));
+}
+
 function buildPrompt(message, business) {
   const trimmedMessage = String(message || "").trim();
   const trimmedBusiness = String(business || "").trim();
+  const instructions = [
+    "You are writing a real customer support reply for a small business.",
+    "Write one complete, ready-to-send message in plain text.",
+    "Answer the customer's actual question first.",
+    "Adapt the reply to the business context.",
+    "Match the customer's language style. If the customer sounds informal or uses Hinglish, reply in clean, simple Hinglish or English as appropriate.",
+    "Keep it natural, short, and useful. Use 1 to 3 short sentences.",
+    "Do not start with generic lines like 'Thank you for reaching out' unless the customer message is formal.",
+    "Do not mention AI, templates, placeholders, policies, or internal notes.",
+    "Do not invent stock, price, delivery time, or appointment availability if it is not confirmed.",
+    "If availability or details are unknown, say you will check or confirm and ask one short follow-up only if needed.",
+    "Mention the key product, service, or request from the customer message when natural.",
+    "For product or stock questions, give a direct store-style answer such as availability, checking availability, or asking one short follow-up.",
+    "Finish with a complete sentence.",
+  ];
 
-  if (trimmedBusiness) {
-    return [
-      "You write customer support replies for a business.",
-      "Write one real, ready-to-send reply in plain text.",
-      "Keep it professional, warm, and concise.",
-      "Do not mention AI, templates, placeholders, or notes.",
-      `Business context: ${trimmedBusiness}`,
-      `Customer message: ${trimmedMessage}`,
-    ].join("\n");
+  if (isMedicalBusiness(trimmedBusiness)) {
+    instructions.push("For medical or pharmacy businesses, do not give dosage, diagnosis, treatment, or unsafe medical advice. Focus on product availability, store help, and safe pharmacist or doctor guidance when relevant.");
   }
 
   return [
-    "You write customer support replies.",
-    "Write one real, ready-to-send reply in plain text.",
-    "Keep it professional, warm, and concise.",
-    "Do not mention AI, templates, placeholders, or notes.",
+    ...instructions,
+    "Examples:",
+    'Customer message: "you have any cosmetics ?" | Business context: "general store shop" | Good reply: "Yes, cosmetics available hain. Aapko kaunsa product chahiye? Main exact availability confirm kar deta hoon."',
+    'Customer message: "i want saridon ?" | Business context: "medical" | Good reply: "Saridon ki availability main check karke confirm karta hoon. Aap quantity bata dijiye. Medicine ke liye pharmacist guidance follow karna best rahega."',
+    'Customer message: "Can you deliver tomorrow?" | Business context: "flower shop" | Good reply: "Tomorrow delivery possible hai ya nahi, main abhi check karke confirm karta hoon. Aap location share kar dijiye."',
+    `Business context: ${trimmedBusiness || "general customer support business"}`,
     `Customer message: ${trimmedMessage}`,
+    "Write only the final reply.",
+  ].join("\n");
+}
+
+function buildRepairPrompt(message, business, previousReply) {
+  const trimmedBusiness = String(business || "").trim() || "general customer support business";
+
+  return [
+    "Rewrite the business reply below so it becomes a strong, ready-to-send customer reply.",
+    "Fix generic greetings, incomplete sentences, weak answers, and missing business context.",
+    "Answer the customer's actual question directly.",
+    "Do not invent stock, price, delivery, or appointment details if not confirmed.",
+    "Keep it short, natural, and complete.",
+    'Example style: "Yes, cosmetics available hain. Aapko kaunsa product chahiye? Main exact availability confirm kar deta hoon."',
+    "Write only the improved final reply.",
+    `Business context: ${trimmedBusiness}`,
+    `Customer message: ${String(message || "").trim()}`,
+    `Weak reply: ${String(previousReply || "").trim()}`,
   ].join("\n");
 }
 
@@ -165,12 +199,61 @@ function sanitizeGeneratedText(text) {
     .trim();
 }
 
-async function generateAiReply(message, business) {
+function responseLooksLowQuality(reply) {
+  const trimmedReply = sanitizeGeneratedText(reply);
+  const lowerReply = trimmedReply.toLowerCase();
+
+  if (!trimmedReply) {
+    return true;
+  }
+
+  if (trimmedReply.length < 24) {
+    return true;
+  }
+
+  if (/^hello[,!. ]+thank you for reaching out/i.test(lowerReply)) {
+    return true;
+  }
+
+  if (/^thank you for reaching out/i.test(lowerReply)) {
+    return true;
+  }
+
+  if (/^(hello|hi|dear)\b/i.test(lowerReply) && trimmedReply.split(/\s+/).length <= 8) {
+    return true;
+  }
+
+  if (LOW_QUALITY_ENDING_RE.test(trimmedReply)) {
+    return true;
+  }
+
+  if (!/[.!?]"?$/.test(trimmedReply)) {
+    return true;
+  }
+
+  return false;
+}
+
+function buildGenerationConfig(model) {
+  const config = {
+    temperature: 0.45,
+    maxOutputTokens: 320,
+  };
+
+  if (/gemini-2\.5/i.test(String(model || ""))) {
+    config.thinkingConfig = {
+      thinkingBudget: 0,
+    };
+  }
+
+  return config;
+}
+
+async function requestGeminiReply(prompt) {
   if (!GEMINI_API_KEY) {
     throw new AiReplyError("Gemini API key is not configured.");
   }
 
-  const prompt = buildPrompt(message, business);
   let lastErrorMessage = "Gemini returned no usable text.";
 
   for (const model of GEMINI_MODELS) {
@@ -201,10 +284,7 @@ async function generateAiReply(message, business) {
               ],
             },
           ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 256,
-          },
+          generationConfig: buildGenerationConfig(model),
         }),
       });
 
@@ -231,6 +311,21 @@ async function generateAiReply(message, business) {
   }
 
   throw new AiReplyError(lastErrorMessage);
+}
+
+async function generateAiReply(message, business) {
+  const firstReply = await requestGeminiReply(buildPrompt(message, business));
+
+  if (!responseLooksLowQuality(firstReply)) {
+    return firstReply;
+  }
+
+  try {
+    const repairedReply = await requestGeminiReply(buildRepairPrompt(message, business, firstReply));
+    return responseLooksLowQuality(repairedReply) ? firstReply : repairedReply;
+  } catch (_error) {
+    return firstReply;
+  }
 }
 
 app.post("/signup", async (req, res) => {
