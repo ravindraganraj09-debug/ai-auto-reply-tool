@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Auto Reply Tool</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="page-wrap">
+    <section id="landing-page" class="card">
+      <h1>AI Auto Reply Tool</h1>
+      <p class="subtitle">Auto-generate smart customer replies, track response history, and unlock premium usage.</p>
+      <div class="feature-grid">
+        <article class="feature-item">
+          <h3>Smart Reply Generator</h3>
+          <p>Create contextual replies for customer messages in seconds.</p>
+        </article>
+        <article class="feature-item">
+          <h3>Reply History</h3>
+          <p>See your previous generated replies in one place.</p>
+        </article>
+        <article class="feature-item">
+          <h3>Premium Upgrade</h3>
+          <p>Upgrade securely and remove free-plan limits.</p>
+        </article>
+      </div>
+      <div class="auth-panel">
+        <h2>Get Started</h2>
+        <input id="email" placeholder="Email">
+        <input id="password" placeholder="Password" type="password">
+        <div class="auth-actions">
+          <button onclick="signup()">Signup</button>
+          <button onclick="login()">Login</button>
+        </div>
+      </div>
+      <p id="auth-status" class="status"></p>
+    </section>
+    <section id="app-page" class="card hidden">
+      <header class="app-header">
+        <h1>Dashboard</h1>
+        <div class="header-actions">
+          <button onclick="showView('dashboard-view')">Dashboard</button>
+          <button onclick="showView('history-view')">History</button>
+          <button onclick="showView('profile-view')">Profile / Settings</button>
+          <button class="danger-btn" onclick="logout()">Logout</button>
+        </div>
+      </header>
+      <p id="app-status" class="status"></p>
+      <section id="dashboard-view" class="view">
+        <h2>Generate Reply</h2>
+        <textarea id="business" placeholder="Describe your business..."></textarea>
+        <textarea id="message" placeholder="Customer message..."></textarea>
+        <div>
+          <button onclick="generateReply()">Generate Reply</button>
+          <button onclick="upgradeToPremium()">Upgrade to Premium</button>
+        </div>
+        <h3>AI Reply</h3>
+        <p id="output" class="reply-output"></p>
+      </section>
+      <section id="history-view" class="view hidden">
+        <h2>Reply History</h2>
+        <div class="history-filters">
+          <input id="history-search" type="text" placeholder="Search by message or reply" oninput="applyHistoryFilters()">
+          <input id="history-date" type="date" onchange="applyHistoryFilters()">
+          <button onclick="clearHistoryFilters()">Clear Filters</button>
+        </div>
+        <div id="history-list" class="list-block"></div>
+      </section>
+      <section id="profile-view" class="view hidden">
+        <h2>Profile / Settings</h2>
+        <div id="profile-summary" class="list-block"></div>
+        <h3>Change Password</h3>
+        <input id="current-password" type="password" placeholder="Current password">
+        <input id="new-password" type="password" placeholder="New password (8+ chars, upper/lower/number/symbol)">
+        <button onclick="changePassword()">Update Password</button>
+      </section>
+    </section>
+  </main>
+  <footer class="footer-note">
+    <small>Built for faster customer support workflows.</small>
+  </footer>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>
