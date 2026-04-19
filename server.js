@@ -124,6 +124,8 @@ function toPublicUser(user) {
 }
 
 const LOW_QUALITY_ENDING_RE = /\b(of|for|with|at|to|and|or)\.$/i;
+const GENERIC_THANKS_RE = /^(thank you for reaching out|thank you for your inquiry|thank you for your message)\b[,\s!.\n-]*/i;
+const GENERIC_GREETING_RE = /^(hello|hi|dear)\b[,\s!.\n-]*/i;
 
 function isMedicalBusiness(business) {
   return /\b(medical|medicine|pharmacy|chemist|clinic|doctor|hospital|drug)\b/i.test(String(business || ""));
@@ -156,19 +158,25 @@ function buildPrompt(message, business, localeHint) {
   const instructions = [
     "You are writing a real customer support reply for a small business.",
     "Write one complete, ready-to-send message in plain text.",
-    "Answer the customer's actual question first.",
+    "Tone must be professional, polite, helpful, and business-like.",
+    "Sound like a real business owner or support representative, not a bot.",
+    "Answer the customer's actual question in the first meaningful sentence.",
     "Adapt the reply to the business context.",
+    "Use relevant business details naturally, such as business type, location, service, or sales channel, when they are provided.",
     "Reply in the same language as the customer's message.",
     "Preserve the customer's script and language. Do not switch to Hindi, Hinglish, or English unless the customer used that language.",
     "If the customer writes in French, reply in French. If the customer writes in Japanese, reply in Japanese. If the customer writes in Hindi, reply in Hindi. If the customer writes in English, reply in English.",
     "If the customer mixes languages, reply in the dominant language and tone used by the customer.",
-    "Keep it natural, short, and useful. Use 1 to 3 short sentences.",
-    "Do not start with generic lines like 'Thank you for reaching out' unless the customer message is formal.",
+    "Keep it natural, clear, and useful. Use 2 to 4 short sentences.",
+    "Preferred structure: optional short greeting, direct answer, then one helpful next step or follow-up.",
+    "A brief greeting or warm closing is fine when it feels natural and professional.",
     "Do not mention AI, templates, placeholders, policies, or internal notes.",
     "Do not invent stock, price, delivery time, or appointment availability if it is not confirmed.",
     "If availability or details are unknown, say you will check or confirm and ask one short follow-up only if needed.",
     "Mention the key product, service, or request from the customer message when natural.",
     "For product or stock questions, give a direct store-style answer such as availability, checking availability, or asking one short follow-up.",
+    "For booking or reservation questions, guide the customer toward confirmation by asking the most useful next detail, such as time, date, guest count, or preferred slot.",
+    "For product sales questions, if exact stock is not confirmed, reassure the customer that you can check and ask the most relevant detail, such as model, quantity, color, or variant.",
     "If the customer's message language is short, ambiguous, or unclear, use the locale hint to choose the reply language.",
     "Support global languages and scripts, including English, Hindi, French, Spanish, Arabic, Japanese, Korean, Chinese, Portuguese, German, Russian, and other languages used by the customer.",
     "Finish with a complete sentence.",
@@ -181,6 +189,8 @@ function buildPrompt(message, business, localeHint) {
   return [
     ...instructions,
     "Examples:",
+    'Customer message: "Can I book a table for tonight?" | Business context: "I run a restaurant in Nagpur" | Good reply: "Hello, yes, we can help with a table booking for tonight at our restaurant in Nagpur. Please share your preferred time and number of guests so we can confirm the reservation for you."',
+    'Customer message: "Do you have iPhone 13 in stock?" | Business context: "I sell mobile phones online" | Good reply: "Hello, thank you for your inquiry. We can check iPhone 13 availability for you right away. Please share your preferred storage variant or color, and we will confirm the exact stock for you."',
     'Customer message: "you have any cosmetics ?" | Business context: "general store shop" | Good reply: "Yes, we have cosmetics available. Which product do you need? I can confirm the exact availability for you."',
     'Customer message: "i want saridon ?" | Business context: "medical" | Good reply: "Saridon ki availability main check karke confirm karta hoon. Aap quantity bata dijiye."',
     'Customer message: "Avez-vous des cosmétiques ?" | Business context: "general store shop" | Good reply: "Oui, nous avons des cosmétiques. Quel produit cherchez-vous ? Je peux confirmer la disponibilité exacte."',
@@ -200,12 +210,14 @@ function buildRepairPrompt(message, business, previousReply, localeHint) {
   return [
     "Rewrite the business reply below so it becomes a strong, ready-to-send customer reply.",
     "Fix generic greetings, incomplete sentences, weak answers, and missing business context.",
+    "Make the tone professional, polite, helpful, and business-like.",
     "Answer the customer's actual question directly.",
     "Keep the reply in the same language and script as the customer's message.",
     "If the message language is unclear, use the locale hint to choose the correct language.",
     "Do not invent stock, price, delivery, or appointment details if not confirmed.",
-    "Keep it short, natural, and complete.",
-    'Example style: "Yes, we have cosmetics available. Which product do you need? I can confirm the exact availability for you."',
+    "Use the business context naturally.",
+    "Keep it concise, natural, and complete in 2 to 4 short sentences.",
+    'Example style: "Hello, yes, we have cosmetics available. Please let us know which product you need, and we will confirm the exact availability for you."',
     "Write only the improved final reply.",
     `Locale hint: ${localeHint}`,
     `Business context: ${trimmedBusiness}`,
@@ -235,6 +247,8 @@ function sanitizeGeneratedText(text) {
 function responseLooksLowQuality(reply) {
   const trimmedReply = sanitizeGeneratedText(reply);
   const lowerReply = trimmedReply.toLowerCase();
+  const withoutGreeting = trimmedReply.replace(GENERIC_GREETING_RE, "").trim();
+  const withoutGreetingAndThanks = withoutGreeting.replace(GENERIC_THANKS_RE, "").trim();
 
   if (!trimmedReply) {
     return true;
@@ -244,15 +258,15 @@ function responseLooksLowQuality(reply) {
     return true;
   }
 
-  if (/^hello[,!. ]+thank you for reaching out/i.test(lowerReply)) {
+  if (/^hello[,!. ]+thank you for reaching out/i.test(lowerReply) && withoutGreetingAndThanks.length < 32) {
     return true;
   }
 
-  if (/^thank you for reaching out/i.test(lowerReply)) {
+  if (/^thank you for reaching out/i.test(lowerReply) && withoutGreetingAndThanks.length < 32) {
     return true;
   }
 
-  if (/^(hello|hi|dear)\b/i.test(lowerReply) && trimmedReply.split(/\s+/).length <= 8) {
+  if (/^(hello|hi|dear)\b/i.test(lowerReply) && withoutGreetingAndThanks.split(/\s+/).filter(Boolean).length <= 4) {
     return true;
   }
 
