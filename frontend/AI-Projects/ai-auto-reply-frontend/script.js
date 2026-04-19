@@ -5,10 +5,21 @@ const paymentConfig = {
 };
 const apiBaseUrl = "https://ai-auto-reply-tool.onrender.com";
 let authToken = localStorage.getItem("authToken") || "";
+let currentUser = null;
+let historyData = [];
 
+function setLandingStatus(message) {
+  const authStatus = document.getElementById("auth-status");
+  if (authStatus) {
+    authStatus.innerText = message;
+  }
+}
 
 function setAppStatus(message) {
-  document.getElementById("app-status").innerText = message;
+  const appStatus = document.getElementById("app-status");
+  if (appStatus) {
+    appStatus.innerText = message;
+  }
 }
 
 function showLanding() {
