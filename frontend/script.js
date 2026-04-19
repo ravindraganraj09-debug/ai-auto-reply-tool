@@ -17,6 +17,8 @@ const apiBaseUrl = getApiBaseUrl();
 let authToken = localStorage.getItem("authToken") || "";
 let currentUser = null;
 let historyData = [];
+let authSessionId = 0;
+let loginAttemptId = 0;
 
 function setLandingStatus(message) {
   const authStatus = document.getElementById("auth-status");
@@ -30,6 +32,44 @@ function setAppStatus(message) {
   if (appStatus) {
     appStatus.innerText = message;
   }
+}
+
+function getCurrentSessionId() {
+  return authSessionId;
+}
+
+function isCurrentSession(sessionId) {
+  return sessionId === authSessionId;
+}
+
+function clearHistoryFiltersInputs() {
+  const searchInput = document.getElementById("history-search");
+  const dateInput = document.getElementById("history-date");
+  if (searchInput) searchInput.value = "";
+  if (dateInput) dateInput.value = "";
+}
+
+function resetAppState() {
+  historyData = [];
+  currentUser = null;
+  document.getElementById("output").innerText = "";
+  document.getElementById("history-list").innerHTML = "";
+  document.getElementById("profile-summary").innerHTML = "";
+  clearHistoryFiltersInputs();
+}
+
+function applyAuthenticatedSession(token, user = null) {
+  authSessionId += 1;
+  authToken = token;
+  currentUser = user;
+
+  if (token) {
+    localStorage.setItem("authToken", token);
+  } else {
+    localStorage.removeItem("authToken");
+  }
+
+  return authSessionId;
 }
 
 function showLanding() {
@@ -90,52 +130,63 @@ async function signup() {
 async function login() {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
+  const attemptId = ++loginAttemptId;
 
   try {
     const { response, data } = await apiRequest("/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
+    if (attemptId !== loginAttemptId) {
+      return;
+    }
     if (!response.ok || !data.token) {
       console.error("Login error:", data);
       setLandingStatus(data.message || "Login failed");
       return;
     }
-    authToken = data.token;
-    localStorage.setItem("authToken", authToken);
-    currentUser = data.user || null;
+
+    const sessionId = applyAuthenticatedSession(data.token, data.user || null);
+    resetAppState();
     showApp();
     showView("dashboard-view");
-    await loadProfile();
-    await loadHistory();
+    await loadProfile(sessionId);
+    await loadHistory(sessionId);
+    if (!isCurrentSession(sessionId)) {
+      return;
+    }
     setAppStatus("Login successful.");
   } catch (err) {
+    if (attemptId !== loginAttemptId) {
+      return;
+    }
     console.error("Login exception:", err);
     setLandingStatus("Login failed (network or CORS error)");
   }
 }
 
 function logout() {
-  authToken = "";
-  currentUser = null;
-  localStorage.removeItem("authToken");
-  document.getElementById("output").innerText = "";
-  document.getElementById("history-list").innerHTML = "";
-  document.getElementById("profile-summary").innerHTML = "";
+  applyAuthenticatedSession("", null);
+  resetAppState();
   showLanding();
   setLandingStatus("Logged out successfully.");
+  setAppStatus("");
 }
 
-async function loadProfile() {
+async function loadProfile(sessionId = getCurrentSessionId()) {
   const { response, data } = await apiRequest("/me", { method: "GET" }, true);
+  if (!isCurrentSession(sessionId)) {
+    return false;
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
       logout();
-      return;
+      return false;
     }
+    document.getElementById("profile-summary").innerHTML = "";
     setAppStatus(data.message || "Failed to load profile.");
-    return;
+    return false;
   }
 
   currentUser = data.user;
@@ -159,18 +210,25 @@ async function loadProfile() {
     <p><strong>Premium Activated:</strong> ${activatedAtText}</p>
     <p><strong>Premium Expires:</strong> ${expiryText}</p>
   `;
+  return true;
 }
 
-async function loadHistory() {
+async function loadHistory(sessionId = getCurrentSessionId()) {
   const { response, data } = await apiRequest("/history", { method: "GET" }, true);
+  if (!isCurrentSession(sessionId)) {
+    return false;
+  }
 
   if (!response.ok) {
+    historyData = [];
+    renderHistory([]);
     setAppStatus(data.message || "Failed to load history.");
-    return;
+    return false;
   }
 
   historyData = data.history || [];
   applyHistoryFilters();
+  return true;
 }
 
 function renderHistory(items) {
@@ -209,10 +267,7 @@ function applyHistoryFilters() {
 }
 
 function clearHistoryFilters() {
-  const searchInput = document.getElementById("history-search");
-  const dateInput = document.getElementById("history-date");
-  if (searchInput) searchInput.value = "";
-  if (dateInput) dateInput.value = "";
+  clearHistoryFiltersInputs();
   renderHistory(historyData);
 }
 
@@ -326,11 +381,17 @@ async function createOrderAndOpenCheckout() {
 
 async function bootstrap() {
   if (!authToken) {
+    resetAppState();
     showLanding();
     return;
   }
 
+  const sessionId = getCurrentSessionId();
+  resetAppState();
   const { response } = await apiRequest("/me", { method: "GET" }, true);
+  if (!isCurrentSession(sessionId)) {
+    return;
+  }
   if (!response.ok) {
     logout();
     return;
@@ -338,8 +399,8 @@ async function bootstrap() {
 
   showApp();
   showView("dashboard-view");
-  await loadProfile();
-  await loadHistory();
+  await loadProfile(sessionId);
+  await loadHistory(sessionId);
 }
 
 bootstrap();

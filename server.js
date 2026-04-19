@@ -100,6 +100,9 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  res.set("Cache-Control", "no-store, private, max-age=0");
+  res.set("Pragma", "no-cache");
+  res.set("Vary", "Authorization");
   req.authUserId = userId;
   next();
 }
@@ -266,6 +269,9 @@ app.post("/signup", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store, private, max-age=0");
+    res.set("Pragma", "no-cache");
+
     if (!isDatabaseReady()) {
       return res.status(503).json({ message: "Database unavailable. Try again." });
     }
