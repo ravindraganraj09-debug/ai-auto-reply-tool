@@ -1,1 +1,0 @@
-<copied from d:\ai-auto-reply-tool\script.js>

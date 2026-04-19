@@ -58,6 +58,212 @@ async function signup() {
 
   const { data } = await apiRequest("/signup", {
     method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+
+  if (data.success) {
+    setLandingStatus("Signup successful! Please login.");
+  } else {
+    setLandingStatus(data.message || "Signup failed.");
+  }
+}
+
+async function login() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { data } = await apiRequest("/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+
+  if (data.token) {
+    authToken = data.token;
+    localStorage.setItem("authToken", authToken);
+    currentUser = data.user;
+    showApp();
+    setAppStatus("Login successful!");
+  } else {
+    setLandingStatus(data.message || "Login failed.");
+  }
+}
+
+function logout() {
+  authToken = "";
+  localStorage.removeItem("authToken");
+  showLanding();
+  setLandingStatus("Logged out.");
+}
+
+// Dummy implementations for missing functions
+function loadHistory() {}
+function loadProfile() {}
+function applyHistoryFilters() {}
+function clearHistoryFilters() {}
+function changePassword() {}
+function generateReply() {}
+function upgradeToPremium() {}
+// AI Auto Reply Tool Frontend Script
+// All logic for UI and API calls
+
+const paymentConfig = {
+  key: "YOUR_KEY_ID",
+};
+
+const apiBaseUrl = "https://ai-auto-reply-tool.onrender.com";
+
+let authToken = localStorage.getItem("authToken") || "";
+let currentUser = null;
+let historyData = [];
+
+function setLandingStatus(message) {
+  document.getElementById("auth-status").innerText = message;
+}
+
+function setAppStatus(message) {
+  document.getElementById("app-status").innerText = message;
+}
+
+function showLanding() {
+  document.getElementById("landing-page").classList.remove("hidden");
+  document.getElementById("app-page").classList.add("hidden");
+}
+
+function showApp() {
+  document.getElementById("landing-page").classList.add("hidden");
+  document.getElementById("app-page").classList.remove("hidden");
+}
+
+function showView(viewId) {
+  const views = document.querySelectorAll(".view");
+  views.forEach((view) => view.classList.add("hidden"));
+  document.getElementById(viewId).classList.remove("hidden");
+
+  if (viewId === "history-view") {
+    loadHistory();
+  }
+  if (viewId === "profile-view") {
+    loadProfile();
+  }
+}
+
+async function apiRequest(path, options = {}, requiresAuth = false) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (requiresAuth && authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+async function signup() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const { data } = await apiRequest("/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  if (data.success) {
+    setLandingStatus("Signup successful! Please login.");
+  } else {
+    setLandingStatus(data.message || "Signup failed.");
+  }
+}
+
+async function login() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const { data } = await apiRequest("/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  if (data.token) {
+    authToken = data.token;
+    localStorage.setItem("authToken", authToken);
+    currentUser = data.user;
+    showApp();
+    setAppStatus("Login successful!");
+  } else {
+    setLandingStatus(data.message || "Login failed.");
+  }
+}
+
+function logout() {
+  authToken = "";
+  localStorage.removeItem("authToken");
+  showLanding();
+  setLandingStatus("Logged out.");
+}
+
+// Dummy implementations for missing functions
+function loadHistory() {}
+function loadProfile() {}
+function applyHistoryFilters() {}
+function clearHistoryFilters() {}
+function changePassword() {}
+function generateReply() {}
+function upgradeToPremium() {}
+const paymentConfig = {
+  key: "YOUR_KEY_ID",
+};
+
+const apiBaseUrl = "https://ai-auto-reply-tool.onrender.com";
+
+let authToken = localStorage.getItem("authToken") || "";
+let currentUser = null;
+let historyData = [];
+
+function setLandingStatus(message) {
+  document.getElementById("auth-status").innerText = message;
+}
+
+function setAppStatus(message) {
+  document.getElementById("app-status").innerText = message;
+}
+
+function showLanding() {
+  document.getElementById("landing-page").classList.remove("hidden");
+  document.getElementById("app-page").classList.add("hidden");
+}
+
+function showApp() {
+  document.getElementById("landing-page").classList.add("hidden");
+  document.getElementById("app-page").classList.remove("hidden");
+}
+
+function showView(viewId) {
+  const views = document.querySelectorAll(".view");
+  views.forEach((view) => view.classList.add("hidden"));
+  document.getElementById(viewId).classList.remove("hidden");
+
+  if (viewId === "history-view") {
+    loadHistory();
+  }
+
+  if (viewId === "profile-view") {
+    loadProfile();
+  }
+}
+
+async function apiRequest(path, options = {}, requiresAuth = false) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+
+  if (requiresAuth && authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+async function signup() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { data } = await apiRequest("/signup", {
+    method: "POST",
     body: JSON.stringify({ email, password }),
   });
 

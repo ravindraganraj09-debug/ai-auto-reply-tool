@@ -1,3 +1,5 @@
+async function connectDatabase() {
+  try {
     usersCollection = db.collection("users");
 
     await usersCollection.createIndex({ email: 1 }, { unique: true });
@@ -20,64 +22,34 @@ function getUserIdFromToken(req) {
   try {
     const token = getBearerToken(req);
     if (!token) return null;
-    const payload = jwt.verify(token, JWT_SECRET);
-    return payload.id;
-  } catch (_error) {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded.id;
+  } catch (error) {
     return null;
   }
 }
 
 function requireAuth(req, res, next) {
   const userId = getUserIdFromToken(req);
-  if (!userId || !ObjectId.isValid(userId)) {
+  if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-
   req.authUserId = userId;
   next();
 }
 
-function toPublicUser(user) {
-  const premiumActive = Boolean(user.premium);
-
-  return {
-    id: user._id,
-    email: user.email,
-    premium: premiumActive,
-    planName: premiumActive ? "Premium" : "Free",
-    usage: user.usage || 0,
-    lastPaymentId: user.lastPaymentId || null,
-    lastOrderId: user.lastOrderId || null,
-    premiumActivatedAt: user.premiumActivatedAt || null,
-    premiumExpiresAt: user.premiumExpiresAt || null,
-  };
-}
-
 async function generateAiReply(message, business) {
-  if (!GEMINI_API_KEY) {
-    return business
-      ? `Smart reply for "${message}" (${business})`
-      : `Smart reply for "${message}"`;
-  }
-
-  const prompt = business
-    ? `You are a customer support assistant for this business: ${business}. Reply to the customer message professionally and briefly: ${message}`
-    : `You are a customer support assistant. Reply to this customer message professionally and briefly: ${message}`;
-
   try {
-    for (const model of GEMINI_MODELS) {
-      const baseUrl = `${GEMINI_API_URL}/${model}:generateContent`;
-      const requestUrl = GEMINI_API_AUTH_MODE === "bearer"
-        ? baseUrl
-        : `${baseUrl}?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+    const prompt = business
+      ? `Generate a professional reply for the following customer message for a ${business} business: "${message}"`
+      : `Generate a professional reply for the following customer message: "${message}"`;
 
+    const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+    for (const model of models) {
+      const requestUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
       const requestHeaders = {
         "Content-Type": "application/json",
       };
-
-      if (GEMINI_API_AUTH_MODE === "bearer") {
-        requestHeaders.Authorization = `Bearer ${process.env.GEMINIAI_API_KEY}`;
-      }
 
       const aiResponse = await fetch(requestUrl, {
         method: "POST",
@@ -120,19 +92,19 @@ async function generateAiReply(message, business) {
 app.post("/signup", async (req, res) => {
   try {
     if (!isDatabaseReady()) {
-      return res.status(503).json({ message: "Database unavailable. Try again." });
+      return res.status(503).json({ success: false, message: "Database unavailable. Try again." });
     }
 
     const { email, password } = req.body;
 
     const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
     if (!strongPassword.test(password || "")) {
-      return res.status(400).json({ message: "Password must be 8+ chars with upper, lower, number, and special character." });
+      return res.status(400).json({ success: false, message: "Password must be 8+ chars with upper, lower, number, and special character." });
     }
 
     const existingUser = await usersCollection.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({ message: "Email already registered" });
+      return res.status(409).json({ success: false, message: "Email already registered" });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -144,9 +116,9 @@ app.post("/signup", async (req, res) => {
       replyHistory: [],
     });
 
-    res.json({ message: "User created" });
+    res.status(201).json({ success: true, message: "User created successfully. Please login." });
   } catch (error) {
-    res.status(500).json({ message: "Internal server error." });
+    res.status(500).json({ success: false, message: "Internal server error." });
   }
 });
 
@@ -250,12 +222,10 @@ app.post("/change-password", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/reply", async (req, res) => {
+app.post("/api/reply", requireAuth, async (req, res) => {
   try {
-    const { message, business, userId } = req.body;
-    const authenticatedUserId = getUserIdFromToken(req);
-    const targetUserId = authenticatedUserId || userId;
-
+    const { message, business } = req.body;
+    const targetUserId = req.authUserId;
     if (!isDatabaseReady()) {
       return res.status(503).json({ reply: "Database unavailable. Try again." });
     }
@@ -301,12 +271,9 @@ app.post("/api/reply", async (req, res) => {
   }
 });
 
-app.post("/create-order", async (req, res) => {
+app.post("/create-order", requireAuth, async (req, res) => {
   try {
-    const authenticatedUserId = getUserIdFromToken(req);
-    const { userId } = req.body || {};
-    const targetUserId = authenticatedUserId || userId;
-
+    const targetUserId = req.authUserId;
     if (!isDatabaseReady()) {
       return res.status(503).json({ message: "Database unavailable. Try again." });
     }
@@ -350,17 +317,14 @@ app.post("/create-order", async (req, res) => {
   }
 });
 
-app.post("/verify-payment", async (req, res) => {
+app.post("/verify-payment", requireAuth, async (req, res) => {
   try {
-    const authenticatedUserId = getUserIdFromToken(req);
     const {
-      userId,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
     } = req.body || {};
-    const targetUserId = authenticatedUserId || userId;
-
+    const targetUserId = req.authUserId;
     if (!isDatabaseReady()) {
       return res.status(503).json({ message: "Database unavailable. Try again." });
     }
