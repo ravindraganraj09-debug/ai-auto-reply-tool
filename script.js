@@ -2,7 +2,7 @@ const paymentConfig = {
   key: "YOUR_KEY_ID",
 };
 
-const apiBaseUrl = "http://localhost:3000";
+const apiBaseUrl = "https://ai-auto-reply-tool.onrender.com";
 
 let authToken = localStorage.getItem("authToken") || "";
 let currentUser = null;
