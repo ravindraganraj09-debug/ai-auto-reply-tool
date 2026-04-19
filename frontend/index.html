@@ -8,42 +8,195 @@
 </head>
 <body>
   <main class="page-wrap">
-    <section id="landing-page" class="card">
-      <h1>AI Auto Reply Tool</h1>
-      <p class="subtitle">Auto-generate smart customer replies, track response history, and unlock premium usage.</p>
-      <div class="feature-grid">
-        <article class="feature-item">
-          <h3>Smart Reply Generator</h3>
-          <p>Create contextual replies for customer messages in seconds.</p>
-        </article>
-        <article class="feature-item">
-          <h3>Reply History</h3>
-          <p>See your previous generated replies in one place.</p>
-        </article>
-        <article class="feature-item">
-          <h3>Premium Upgrade</h3>
-          <p>Upgrade securely and remove free-plan limits.</p>
-        </article>
-      </div>
-      <div class="auth-panel">
-        <h2>Get Started</h2>
-        <input id="email" placeholder="Email">
-        <input id="password" placeholder="Password" type="password">
-        <div class="auth-actions">
-          <button onclick="signup()">Signup</button>
-          <button onclick="login()">Login</button>
+    <section id="landing-page" class="card landing-shell">
+      <header class="site-nav">
+        <a class="brand-mark" href="#hero">AI Auto Reply Tool</a>
+        <nav class="site-nav-links" aria-label="Homepage sections">
+          <a class="nav-link" href="#features">Features</a>
+          <a class="nav-link" href="#how-it-works">How it works</a>
+          <a class="nav-link" href="#pricing">Pricing</a>
+          <a class="nav-link" href="#faq">FAQ</a>
+          <a class="nav-link" href="#contact">Contact</a>
+        </nav>
+      </header>
+
+      <section id="hero" class="hero-section section-block">
+        <p class="eyebrow">Reply faster. Sound polished.</p>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <h1>Give your business a faster way to reply to customers.</h1>
+            <p class="subtitle hero-subtitle">AI Auto Reply turns incoming customer messages into clean, professional responses so small businesses can save time and still sound sharp.</p>
+            <div class="hero-actions">
+              <a class="button primary-btn button-lg" href="#contact">Start Free</a>
+              <a class="button secondary-btn button-lg" href="#pricing">See Pricing</a>
+            </div>
+            <p class="trust-line">For shop owners, freelancers, coaching classes, and local service teams.</p>
+          </div>
+          <aside class="hero-highlight">
+            <p class="mini-label">Business-ready</p>
+            <ul class="hero-points">
+              <li>Handle WhatsApp, Instagram, and website inquiries with less manual typing.</li>
+              <li>Keep your replies consistent even when multiple people answer customers.</li>
+              <li>Use reply history to repeat what works and respond with more confidence.</li>
+            </ul>
+            <div class="usage-pill">Free plan includes 5 reply generations to test the workflow.</div>
+          </aside>
         </div>
-      </div>
+      </section>
+
+      <section id="features" class="section-block">
+        <div class="section-heading">
+          <p class="mini-label">Features</p>
+          <h2>Everything you need for faster everyday customer replies.</h2>
+          <p class="section-subtitle">The homepage stays simple, but the product still gives you enough structure to answer quickly and keep your messaging clean.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-item">
+            <span class="feature-kicker">Speed</span>
+            <h3>Generate replies in seconds</h3>
+            <p>Paste the customer message, add your business context, and get a polished reply without starting from scratch.</p>
+          </article>
+          <article class="feature-item">
+            <span class="feature-kicker">Clarity</span>
+            <h3>Stay consistent across channels</h3>
+            <p>Use one tool to keep your responses professional across chat, social media, and web leads.</p>
+          </article>
+          <article class="feature-item">
+            <span class="feature-kicker">Control</span>
+            <h3>Review reply history anytime</h3>
+            <p>Search old replies, check what was sent before, and keep your customer communication better organized.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="section-block">
+        <div class="section-heading">
+          <p class="mini-label">How It Works</p>
+          <h2>A simple 3-step flow for busy business owners.</h2>
+          <p class="section-subtitle">No complicated setup. Just log in, describe your business, and start generating replies that sound ready to send.</p>
+        </div>
+        <div class="steps-grid">
+          <article class="step-card">
+            <span class="step-number">1</span>
+            <h3>Add your business context</h3>
+            <p>Tell the tool what kind of business you run so the generated response feels more relevant to your customer.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">2</span>
+            <h3>Paste the customer message</h3>
+            <p>Use a real customer question from WhatsApp, Instagram, Facebook, or your website inbox.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">3</span>
+            <h3>Generate, review, and send</h3>
+            <p>Copy the AI reply, make any small edits you want, and reply faster while keeping your tone professional.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="pricing" class="pricing-section">
+        <div class="section-heading">
+          <p class="mini-label">Pricing</p>
+          <h2>Start free, then upgrade when replying becomes part of your daily workflow.</h2>
+          <p class="section-subtitle">This keeps the entry simple for first-time users while still giving frequent responders a smoother premium path.</p>
+        </div>
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <p class="pricing-plan">Free</p>
+            <h3 class="pricing-value">Test the workflow</h3>
+            <p class="pricing-caption">Best for trying the product with real customer messages before you commit.</p>
+            <ul class="pricing-list">
+              <li>5 AI-generated replies to get started</li>
+              <li>Reply history and account usage tracking</li>
+              <li>Business context for more accurate replies</li>
+            </ul>
+          </article>
+          <article class="pricing-card pricing-card-featured">
+            <span class="pricing-badge">Best for daily use</span>
+            <p class="pricing-plan">Premium</p>
+            <h3 class="pricing-value">Upgrade inside the app</h3>
+            <p class="pricing-caption">Use Razorpay for a simple upgrade path when you need the tool more regularly.</p>
+            <ul class="pricing-list">
+              <li>Designed for regular customer conversations</li>
+              <li>Premium access linked directly to your account</li>
+              <li>Better fit for businesses that respond every day</li>
+            </ul>
+            <a class="button primary-btn pricing-cta" href="#contact">Unlock Premium</a>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq" class="section-block">
+        <div class="section-heading">
+          <p class="mini-label">FAQ</p>
+          <h2>Common questions before you start.</h2>
+          <p class="section-subtitle">A basic business homepage works best when the key decisions are easy to scan.</p>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item" open>
+            <summary>Who is this tool for?</summary>
+            <p>It is built for small businesses, solo operators, and teams that answer customer questions manually and want faster, cleaner responses.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Do I need technical setup before using it?</summary>
+            <p>No. You can create an account, open the dashboard, and start testing replies with your own customer messages right away.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Can I try it before paying?</summary>
+            <p>Yes. The free plan lets you test the reply workflow first so you can see whether it fits your day-to-day communication style.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What happens when I need more usage?</summary>
+            <p>You can upgrade from inside the app using the premium flow and keep the same account without switching tools.</p>
+          </details>
+        </div>
+      </section>
+
+      <section id="contact" class="section-block contact-section">
+        <div class="contact-grid">
+          <div class="contact-copy">
+            <div class="section-heading">
+              <p class="mini-label">Contact</p>
+              <h2>Start with a free account and keep your business ready to reply faster.</h2>
+              <p class="section-subtitle">This section keeps the homepage practical: you can create your account, log in, and move straight into the product from the same screen.</p>
+            </div>
+            <div class="contact-points">
+              <article class="contact-point">
+                <h3>Best first step</h3>
+                <p>Create an account and test the free plan with a real customer message from your business.</p>
+              </article>
+              <article class="contact-point">
+                <h3>For growing usage</h3>
+                <p>Upgrade from inside the app whenever your reply volume becomes more regular.</p>
+              </article>
+            </div>
+          </div>
+
+          <div id="auth-panel" class="auth-panel">
+            <div class="auth-head">
+              <p class="mini-label">Get Started</p>
+              <h2>Create your account</h2>
+              <p class="section-subtitle">Use the free plan first, then log in anytime to continue from your dashboard.</p>
+            </div>
+            <input id="email" placeholder="Email">
+            <input id="password" placeholder="Password" type="password">
+            <div class="auth-actions">
+              <button type="button" class="primary-btn" onclick="signup()">Create Account</button>
+              <button type="button" class="secondary-btn" onclick="login()">Login</button>
+            </div>
+          </div>
+        </div>
+      </section>
       <p id="auth-status" class="status"></p>
     </section>
     <section id="app-page" class="card hidden">
       <header class="app-header">
         <h1>Dashboard</h1>
         <div class="header-actions">
-          <button onclick="showView('dashboard-view')">Dashboard</button>
-          <button onclick="showView('history-view')">History</button>
-          <button onclick="showView('profile-view')">Profile / Settings</button>
-          <button class="danger-btn" onclick="logout()">Logout</button>
+          <button type="button" class="secondary-btn" onclick="showView('dashboard-view')">Dashboard</button>
+          <button type="button" class="secondary-btn" onclick="showView('history-view')">History</button>
+          <button type="button" class="secondary-btn" onclick="showView('profile-view')">Profile / Settings</button>
+          <button type="button" class="danger-btn" onclick="logout()">Logout</button>
         </div>
       </header>
       <p id="app-status" class="status"></p>
@@ -51,9 +204,9 @@
         <h2>Generate Reply</h2>
         <textarea id="business" placeholder="Describe your business..."></textarea>
         <textarea id="message" placeholder="Customer message..."></textarea>
-        <div>
-          <button onclick="generateReply()">Generate Reply</button>
-          <button onclick="upgradeToPremium()">Upgrade to Premium</button>
+        <div class="stack-actions">
+          <button type="button" class="primary-btn" onclick="generateReply()">Generate Reply</button>
+          <button type="button" class="secondary-btn" onclick="upgradeToPremium()">Upgrade to Premium</button>
         </div>
         <h3>AI Reply</h3>
         <p id="output" class="reply-output"></p>
@@ -63,7 +216,7 @@
         <div class="history-filters">
           <input id="history-search" type="text" placeholder="Search by message or reply" oninput="applyHistoryFilters()">
           <input id="history-date" type="date" onchange="applyHistoryFilters()">
-          <button onclick="clearHistoryFilters()">Clear Filters</button>
+          <button type="button" class="ghost-btn" onclick="clearHistoryFilters()">Clear Filters</button>
         </div>
         <div id="history-list" class="list-block"></div>
       </section>
@@ -73,12 +226,12 @@
         <h3>Change Password</h3>
         <input id="current-password" type="password" placeholder="Current password">
         <input id="new-password" type="password" placeholder="New password (8+ chars, upper/lower/number/symbol)">
-        <button onclick="changePassword()">Update Password</button>
+        <button type="button" class="primary-btn" onclick="changePassword()">Update Password</button>
       </section>
     </section>
   </main>
   <footer class="footer-note">
-    <small>Built for faster customer support workflows.</small>
+    <small>Built for faster customer conversations.</small>
   </footer>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script src="./script.js"></script>

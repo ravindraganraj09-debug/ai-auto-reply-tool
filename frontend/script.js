@@ -3,7 +3,17 @@
 const paymentConfig = {
   key: "YOUR_KEY_ID",
 };
-const apiBaseUrl = "https://ai-auto-reply-tool.onrender.com";
+
+function getApiBaseUrl() {
+  const hostname = window.location.hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://localhost:3000";
+  }
+
+  return "https://ai-auto-reply-tool.onrender.com";
+}
+
+const apiBaseUrl = getApiBaseUrl();
 let authToken = localStorage.getItem("authToken") || "";
 let currentUser = null;
 let historyData = [];
