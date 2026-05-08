@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ai-auto-reply-tool
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /health

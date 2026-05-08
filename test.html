@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Website Widget Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Client Website Test</h1>
+  <p>Replace <code>YOUR_WORKSPACE_ID</code> with your actual workspace ID from Profile.</p>
+
+  <p>Testing via script embed (recommended production method).</p>
+
+  <script>
+    window.aiToolConfig = {
+      businessId: "YOUR_WORKSPACE_ID"
+    };
+  </script>
+  <script src="http://localhost:3000/widget.js"></script>
+</body>
+</html>

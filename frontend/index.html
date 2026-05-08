@@ -3,43 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Auto Reply Tool</title>
-  <link rel="stylesheet" href="./style.css?v=20260419c">
+  <title>ReplyPilot AI SaaS</title>
+  <link rel="stylesheet" href="./style.css?v=20260420c">
 </head>
 <body>
   <main class="page-wrap">
     <section id="landing-page" class="card landing-shell">
       <header class="site-nav">
-        <a class="brand-mark" href="#hero">AI Auto Reply Tool</a>
+        <a class="brand-mark" href="#hero">
+          <span class="brand-dot"></span>
+          ReplyPilot
+        </a>
         <nav class="site-nav-links" aria-label="Homepage sections">
           <a class="nav-link" href="#features">Features</a>
-          <a class="nav-link" href="#how-it-works">How it works</a>
+          <a class="nav-link" href="#channels">Channels</a>
+          <a class="nav-link" href="#admin-dashboard">Dashboard</a>
           <a class="nav-link" href="#pricing">Pricing</a>
-          <a class="nav-link" href="#faq">FAQ</a>
-          <a class="nav-link" href="#contact">Contact</a>
+          <a class="nav-link" href="#contact">Start</a>
         </nav>
       </header>
 
       <section id="hero" class="hero-section section-block">
-        <p class="eyebrow">Reply faster. Sound polished.</p>
         <div class="hero-grid">
           <div class="hero-copy">
-            <h1>Give your business a faster way to reply to customers.</h1>
-            <p class="subtitle hero-subtitle">AI Auto Reply turns incoming customer messages into clean, professional responses so small businesses can save time and still sound sharp.</p>
+            <p class="eyebrow">AI SaaS for customer conversations</p>
+            <h1>Chatbot, lead capture, auto reply, and analytics in one workspace.</h1>
+            <p class="subtitle hero-subtitle">ReplyPilot helps you run website chat and WhatsApp conversations from one AI sales desk so every inquiry becomes a trackable lead instead of a missed message.</p>
             <div class="hero-actions">
-              <a class="button primary-btn button-lg" href="#contact">Start Free</a>
-              <a class="button secondary-btn button-lg" href="#pricing">See Pricing</a>
+              <a class="button primary-btn button-lg" href="#contact">Launch Free Workspace</a>
+              <a class="button secondary-btn button-lg" href="#admin-dashboard">View Dashboard</a>
+              <button type="button" class="ghost-btn button-lg" onclick="toggleChatbot(true)">Try Website Chatbot</button>
             </div>
-            <p class="trust-line">For shop owners, freelancers, coaching classes, and local service teams.</p>
+            <div class="hero-trust">
+              <span class="trust-chip">Website Chatbot</span>
+              <span class="trust-chip">WhatsApp Auto Reply</span>
+              <span class="trust-chip">Lead Capture</span>
+              <span class="trust-chip">Analytics</span>
+            </div>
           </div>
+
           <aside class="hero-highlight">
-            <p class="mini-label">Business-ready</p>
-            <ul class="hero-points">
-              <li>Handle WhatsApp, Instagram, and website inquiries with less manual typing.</li>
-              <li>Keep your replies consistent even when multiple people answer customers.</li>
-              <li>Use reply history to repeat what works and respond with more confidence.</li>
-            </ul>
-            <div class="usage-pill">Free plan includes 5 reply generations to test the workflow.</div>
+            <div class="panel-header">
+              <p class="mini-label">What goes live</p>
+              <h2>One product, five revenue-facing workflows.</h2>
+            </div>
+            <div class="hero-stat-grid">
+              <article class="stat-card">
+                <strong>24/7</strong>
+                <span>Website and WhatsApp chatbot coverage</span>
+              </article>
+              <article class="stat-card">
+                <strong>Leads</strong>
+                <span>Capture contact details and buying intent</span>
+              </article>
+              <article class="stat-card">
+                <strong>Auto Reply</strong>
+                <span>Generate polished responses in seconds</span>
+              </article>
+              <article class="stat-card">
+                <strong>Admin View</strong>
+                <span>Monitor activity from a single dashboard</span>
+              </article>
+            </div>
+            <div class="usage-pill">Free plan includes 5 AI replies so you can validate the workflow before upgrading.</div>
           </aside>
         </div>
       </section>
@@ -47,49 +73,108 @@
       <section id="features" class="section-block">
         <div class="section-heading">
           <p class="mini-label">Features</p>
-          <h2>Everything you need for faster everyday customer replies.</h2>
-          <p class="section-subtitle">The homepage stays simple, but the product still gives you enough structure to answer quickly and keep your messaging clean.</p>
+          <h2>The actual product your SaaS users will pay for.</h2>
+          <p class="section-subtitle">This is no longer just a reply generator. It is positioned as a complete inbound conversation system for businesses that want more conversions from chat.</p>
         </div>
-        <div class="feature-grid">
+        <div class="feature-grid feature-grid-large">
           <article class="feature-item">
-            <span class="feature-kicker">Speed</span>
-            <h3>Generate replies in seconds</h3>
-            <p>Paste the customer message, add your business context, and get a polished reply without starting from scratch.</p>
+            <span class="feature-kicker">Chatbot</span>
+            <h3>Website chatbot for first-touch conversations</h3>
+            <p>Qualify visitors, capture their details, and respond instantly before your team even opens the dashboard.</p>
           </article>
           <article class="feature-item">
-            <span class="feature-kicker">Clarity</span>
-            <h3>Stay consistent across channels</h3>
-            <p>Use one tool to keep your responses professional across chat, social media, and web leads.</p>
+            <span class="feature-kicker">WhatsApp</span>
+            <h3>WhatsApp workflow support for fast follow-up</h3>
+            <p>Keep response quality consistent across WhatsApp inquiries without making your team type the same answer all day.</p>
           </article>
           <article class="feature-item">
-            <span class="feature-kicker">Control</span>
-            <h3>Review reply history anytime</h3>
-            <p>Search old replies, check what was sent before, and keep your customer communication better organized.</p>
+            <span class="feature-kicker">Leads</span>
+            <h3>Lead capture with source, interest, and stage tracking</h3>
+            <p>Store buyer name, contact, source channel, product interest, and notes so sales follow-up stays organized.</p>
+          </article>
+          <article class="feature-item">
+            <span class="feature-kicker">Replies</span>
+            <h3>Auto reply studio for real customer messages</h3>
+            <p>Use business context plus the incoming message to generate business-ready replies for website or WhatsApp chats.</p>
+          </article>
+          <article class="feature-item">
+            <span class="feature-kicker">Admin</span>
+            <h3>Admin dashboard with live pipeline visibility</h3>
+            <p>See active channels, recent leads, reply activity, and plan status from a single operating screen.</p>
+          </article>
+          <article class="feature-item">
+            <span class="feature-kicker">Analytics</span>
+            <h3>Conversation analytics that show what is working</h3>
+            <p>Measure lead volume, reply output, channel mix, and automation coverage without exporting data to another tool.</p>
           </article>
         </div>
       </section>
 
-      <section id="how-it-works" class="section-block">
+      <section id="channels" class="section-block">
         <div class="section-heading">
-          <p class="mini-label">How It Works</p>
-          <h2>A simple 3-step flow for busy business owners.</h2>
-          <p class="section-subtitle">No complicated setup. Just log in, describe your business, and start generating replies that sound ready to send.</p>
+          <p class="mini-label">Channel Stack</p>
+          <h2>Built for the two places businesses lose the most leads.</h2>
+          <p class="section-subtitle">The product framing is simple: website visitors and WhatsApp inquiries enter the same pipeline, then the dashboard turns them into actions.</p>
         </div>
-        <div class="steps-grid">
-          <article class="step-card">
-            <span class="step-number">1</span>
-            <h3>Add your business context</h3>
-            <p>Tell the tool what kind of business you run so the generated response feels more relevant to your customer.</p>
+        <div class="channel-grid">
+          <article class="channel-card">
+            <p class="channel-tag">Website Chatbot</p>
+            <h3>Capture leads the moment they ask a question</h3>
+            <p>Use the chatbot as a front desk that asks for name, contact, and intent before the inquiry slips away.</p>
+            <ul class="channel-list">
+              <li>Collect inquiry details automatically</li>
+              <li>Push each chat into the lead pipeline</li>
+              <li>Reply instantly with AI support</li>
+            </ul>
           </article>
-          <article class="step-card">
-            <span class="step-number">2</span>
-            <h3>Paste the customer message</h3>
-            <p>Use a real customer question from WhatsApp, Instagram, Facebook, or your website inbox.</p>
+          <article class="channel-card">
+            <p class="channel-tag">WhatsApp Auto Reply</p>
+            <h3>Respond faster without sounding robotic</h3>
+            <p>Generate helpful WhatsApp responses that still feel business-like, direct, and ready to send.</p>
+            <ul class="channel-list">
+              <li>Reuse one response engine across teams</li>
+              <li>Keep message quality consistent</li>
+              <li>Reduce manual reply time</li>
+            </ul>
           </article>
-          <article class="step-card">
-            <span class="step-number">3</span>
-            <h3>Generate, review, and send</h3>
-            <p>Copy the AI reply, make any small edits you want, and reply faster while keeping your tone professional.</p>
+          <article class="channel-card">
+            <p class="channel-tag">Shared Admin Dashboard</p>
+            <h3>Track every lead, reply, and opportunity in one place</h3>
+            <p>Move from scattered inboxes to a system where business owners can see what entered, what got answered, and what still needs action.</p>
+            <ul class="channel-list">
+              <li>Pipeline visibility for recent leads</li>
+              <li>History view for previous conversations</li>
+              <li>Analytics summary for performance checks</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="admin-dashboard" class="section-block">
+        <div class="section-heading">
+          <p class="mini-label">Admin Dashboard</p>
+          <h2>One command center for lead capture, replies, and growth metrics.</h2>
+          <p class="section-subtitle">The dashboard below mirrors the actual product direction: generate replies, save leads, and check performance without changing tabs.</p>
+        </div>
+        <div class="dashboard-preview">
+          <article class="preview-panel preview-panel-wide">
+            <div class="preview-topline">
+              <span>Auto Reply Studio</span>
+              <span>Lead Capture</span>
+              <span>Channel Routing</span>
+            </div>
+            <h3>Website + WhatsApp conversations routed into one AI workflow</h3>
+            <p>Operators can capture the lead, feed the incoming message into the AI reply studio, then review the generated answer before sending.</p>
+          </article>
+          <article class="preview-panel">
+            <p class="mini-label">Pipeline</p>
+            <h3>New, Qualified, Follow-up, Won</h3>
+            <p>Keep every inquiry attached to a lead stage instead of losing context in chat threads.</p>
+          </article>
+          <article class="preview-panel">
+            <p class="mini-label">Analytics</p>
+            <h3>Lead volume and reply coverage at a glance</h3>
+            <p>Business owners can check which channel is active and how much of the pipeline is already being automated.</p>
           </article>
         </div>
       </section>
@@ -97,58 +182,32 @@
       <section id="pricing" class="pricing-section">
         <div class="section-heading">
           <p class="mini-label">Pricing</p>
-          <h2>Start free, then upgrade when replying becomes part of your daily workflow.</h2>
-          <p class="section-subtitle">This keeps the entry simple for first-time users while still giving frequent responders a smoother premium path.</p>
+          <h2>Start with free validation, then upgrade when the inbox becomes a growth channel.</h2>
+          <p class="section-subtitle">The pricing keeps the product easy to try while leaving a clear upgrade path for teams that want always-on lead handling.</p>
         </div>
         <div class="pricing-grid">
           <article class="pricing-card">
             <p class="pricing-plan">Free</p>
-            <h3 class="pricing-value">Test the workflow</h3>
-            <p class="pricing-caption">Best for trying the product with real customer messages before you commit.</p>
+            <h3 class="pricing-value">Validate the workflow</h3>
+            <p class="pricing-caption">Use it to test website and WhatsApp-style customer messages before you commit.</p>
             <ul class="pricing-list">
-              <li>5 AI-generated replies to get started</li>
-              <li>Reply history and account usage tracking</li>
-              <li>Business context for more accurate replies</li>
+              <li>5 AI replies included</li>
+              <li>Lead capture and reply history</li>
+              <li>Admin dashboard basics</li>
             </ul>
           </article>
           <article class="pricing-card pricing-card-featured">
-            <span class="pricing-badge">Best for daily use</span>
+            <span class="pricing-badge">Growth plan</span>
             <p class="pricing-plan">Premium</p>
-            <h3 class="pricing-value">Upgrade inside the app</h3>
-            <p class="pricing-caption">Use Razorpay for a simple upgrade path when you need the tool more regularly.</p>
+            <h3 class="pricing-value">Unlock daily operations</h3>
+            <p class="pricing-caption">Use Razorpay to move into full-time usage when your team needs the tool every day.</p>
             <ul class="pricing-list">
-              <li>Designed for regular customer conversations</li>
-              <li>Premium access linked directly to your account</li>
-              <li>Better fit for businesses that respond every day</li>
+              <li>Best fit for regular lead handling</li>
+              <li>Keep one account with upgraded access</li>
+              <li>Better for active support and sales teams</li>
             </ul>
             <a class="button primary-btn pricing-cta" href="#contact">Unlock Premium</a>
           </article>
-        </div>
-      </section>
-
-      <section id="faq" class="section-block">
-        <div class="section-heading">
-          <p class="mini-label">FAQ</p>
-          <h2>Common questions before you start.</h2>
-          <p class="section-subtitle">A basic business homepage works best when the key decisions are easy to scan.</p>
-        </div>
-        <div class="faq-list">
-          <details class="faq-item" open>
-            <summary>Who is this tool for?</summary>
-            <p>It is built for small businesses, solo operators, and teams that answer customer questions manually and want faster, cleaner responses.</p>
-          </details>
-          <details class="faq-item">
-            <summary>Do I need technical setup before using it?</summary>
-            <p>No. You can create an account, open the dashboard, and start testing replies with your own customer messages right away.</p>
-          </details>
-          <details class="faq-item">
-            <summary>Can I try it before paying?</summary>
-            <p>Yes. The free plan lets you test the reply workflow first so you can see whether it fits your day-to-day communication style.</p>
-          </details>
-          <details class="faq-item">
-            <summary>What happens when I need more usage?</summary>
-            <p>You can upgrade from inside the app using the premium flow and keep the same account without switching tools.</p>
-          </details>
         </div>
       </section>
 
@@ -156,18 +215,18 @@
         <div class="contact-grid">
           <div class="contact-copy">
             <div class="section-heading">
-              <p class="mini-label">Contact</p>
-              <h2>Start with a free account and keep your business ready to reply faster.</h2>
-              <p class="section-subtitle">This section keeps the homepage practical: you can create your account, log in, and move straight into the product from the same screen.</p>
+              <p class="mini-label">Launch</p>
+              <h2>Create your workspace and start testing the product with real leads.</h2>
+              <p class="section-subtitle">Sign up, log in, then open the dashboard to capture a lead, generate a reply, and see the analytics start building.</p>
             </div>
             <div class="contact-points">
               <article class="contact-point">
-                <h3>Best first step</h3>
-                <p>Create an account and test the free plan with a real customer message from your business.</p>
+                <h3>Best first use case</h3>
+                <p>Start with a real website or WhatsApp inquiry and see how the AI auto reply plus lead capture flow feels.</p>
               </article>
               <article class="contact-point">
-                <h3>For growing usage</h3>
-                <p>Upgrade from inside the app whenever your reply volume becomes more regular.</p>
+                <h3>What the dashboard gives you</h3>
+                <p>Leads, reply history, plan visibility, channel status, and analytics in one login.</p>
               </article>
             </div>
           </div>
@@ -176,9 +235,9 @@
             <div class="auth-head">
               <p class="mini-label">Get Started</p>
               <h2>Create your account</h2>
-              <p class="section-subtitle">Use the free plan first, then log in anytime to continue from your dashboard.</p>
+              <p class="section-subtitle">Use the free plan first, then upgrade only after the workflow starts proving value.</p>
             </div>
-            <input id="email" placeholder="Email">
+            <input id="email" type="email" placeholder="Email">
             <input id="password" placeholder="Password" type="password">
             <div class="auth-actions">
               <button type="button" class="primary-btn" onclick="signup()">Create Account</button>
@@ -189,51 +248,544 @@
       </section>
       <p id="auth-status" class="status"></p>
     </section>
+
     <section id="app-page" class="card hidden">
       <header class="app-header">
-        <h1>Dashboard</h1>
+        <div class="app-header-copy">
+          <p class="mini-label">Admin Dashboard</p>
+          <h1>Conversation command center</h1>
+          <p class="section-subtitle">Manage chatbot leads, website and WhatsApp replies, and performance metrics from one place.</p>
+        </div>
         <div class="header-actions">
           <button type="button" class="secondary-btn" onclick="showView('dashboard-view')">Dashboard</button>
           <button type="button" class="secondary-btn" onclick="showView('history-view')">History</button>
-          <button type="button" class="secondary-btn" onclick="showView('profile-view')">Profile / Settings</button>
+          <button type="button" class="secondary-btn" onclick="showView('profile-view')">Profile</button>
           <button type="button" class="danger-btn" onclick="logout()">Logout</button>
         </div>
       </header>
+
       <p id="app-status" class="status"></p>
-      <section id="dashboard-view" class="view">
-        <h2>Generate Reply</h2>
-        <textarea id="business" placeholder="Describe your business..."></textarea>
-        <textarea id="message" placeholder="Customer message..."></textarea>
-        <div class="stack-actions">
-          <button type="button" class="primary-btn" onclick="generateReply()">Generate Reply</button>
-          <button type="button" class="secondary-btn" onclick="upgradeToPremium()">Upgrade to Premium</button>
+
+      <section id="dashboard-view" class="view dashboard-view">
+        <div id="analytics-cards" class="analytics-grid"></div>
+
+        <div class="workspace-grid">
+          <section class="panel studio-panel">
+            <div class="panel-header">
+              <p class="mini-label">Lead Capture + Auto Reply</p>
+              <h2>Run your inbound workflow from one form</h2>
+              <p class="section-subtitle">Save the lead, generate the reply, and keep the source channel attached to the record.</p>
+            </div>
+
+            <div class="form-grid form-grid-two">
+              <label class="field">
+                <span>Channel</span>
+                <select id="conversation-channel">
+                  <option value="website">Website Chatbot</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="instagram">Instagram DM</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Lead Source</span>
+                <select id="lead-source">
+                  <option value="website">Website Chatbot</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="manual">Manual Entry</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Lead Name</span>
+                <input id="lead-name" type="text" placeholder="Aarav Sharma">
+              </label>
+
+              <label class="field">
+                <span>Phone or Email</span>
+                <input id="lead-contact" type="text" placeholder="+91 98xxxxxx or email">
+              </label>
+
+              <label class="field">
+                <span>Lead Interest</span>
+                <input id="lead-interest" type="text" placeholder="Product, service, booking, pricing">
+              </label>
+
+              <label class="field">
+                <span>Lead Stage</span>
+                <select id="lead-status">
+                  <option value="New">New</option>
+                  <option value="Qualified">Qualified</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Won">Won</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Lead Notes</span>
+              <textarea id="lead-notes" placeholder="Important details about the lead, budget, question, or follow-up context"></textarea>
+            </label>
+
+            <label class="field">
+              <span>Business Context</span>
+              <textarea id="business" placeholder="Describe your business, offer, location, and support style"></textarea>
+            </label>
+
+            <label class="field">
+              <span>Incoming Customer Message</span>
+              <textarea id="message" placeholder="Paste the actual customer message from website chat or WhatsApp"></textarea>
+            </label>
+
+            <div class="form-grid form-grid-two">
+              <label class="field">
+                <span>Reply Language</span>
+                <select id="reply-language">
+                  <option value="auto">Auto Detect</option>
+                  <option value="english">English</option>
+                  <option value="hindi">Hindi</option>
+                  <option value="hinglish">Hinglish</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Reply Tone</span>
+                <select id="reply-tone">
+                  <option value="professional">Professional</option>
+                  <option value="warm">Warm</option>
+                  <option value="casual">Casual</option>
+                  <option value="sales">Sales</option>
+                </select>
+              </label>
+            </div>
+            <label class="field">
+              <span>Formality</span>
+              <select id="reply-formality">
+                <option value="neutral">Neutral</option>
+                <option value="formal">Formal</option>
+                <option value="informal">Informal</option>
+              </select>
+            </label>
+
+            <div class="stack-actions">
+              <button type="button" class="secondary-btn" onclick="captureLead()">Save Lead</button>
+              <button type="button" class="primary-btn" onclick="generateReply()">Generate Auto Reply</button>
+              <button type="button" class="ghost-btn" onclick="upgradeToPremium()">Upgrade to Premium</button>
+            </div>
+
+            <div class="reply-shell">
+              <div class="reply-shell-header">
+                <div>
+                  <p class="mini-label">AI Output</p>
+                  <h3>Ready-to-send reply</h3>
+                </div>
+                <span id="reply-context-chip" class="context-chip">Website Chatbot</span>
+              </div>
+              <p id="output" class="reply-output"></p>
+            </div>
+
+            <div class="reply-shell">
+              <div class="reply-shell-header">
+                <div>
+                  <p class="mini-label">AI Sales Closer</p>
+                  <h3>Next best action</h3>
+                </div>
+                <button type="button" class="secondary-btn" onclick="generateSalesSuggestion()">Generate Sales Suggestion</button>
+              </div>
+              <p id="sales-suggestion-output" class="reply-output"></p>
+            </div>
+          </section>
+
+          <aside class="workspace-side">
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">Channel Status</p>
+                <h2>Connected workflows</h2>
+              </div>
+              <div id="channel-health" class="channel-health"></div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">Lead Pipeline</p>
+                <h2>Recent captured leads</h2>
+              </div>
+              <div class="history-filters">
+                <label class="field">
+                  <span>Inbox Scope</span>
+                  <select id="inbox-scope" onchange="applyInboxFilters()">
+                    <option value="all">All</option>
+                    <option value="unassigned">Unassigned</option>
+                    <option value="mine">Mine</option>
+                  </select>
+                </label>
+              </div>
+              <div id="lead-list" class="list-block"></div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">Analytics Summary</p>
+                <h2>Workspace signals</h2>
+              </div>
+              <div id="analytics-summary" class="list-block"></div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">Owner Notifications</p>
+                <h2>Latest alerts</h2>
+              </div>
+              <div id="notification-list" class="list-block"></div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">WhatsApp Integration</p>
+                <h2>Send a manual WhatsApp reply</h2>
+                <p class="section-subtitle">Use this after your Meta webhook and phone number are configured.</p>
+              </div>
+              <label class="field">
+                <span>Recipient Number</span>
+                <input id="whatsapp-to" type="text" placeholder="91xxxxxxxxxx">
+              </label>
+              <label class="field">
+                <span>Message</span>
+                <textarea id="whatsapp-message" placeholder="Write the WhatsApp message you want to send"></textarea>
+              </label>
+              <button type="button" class="primary-btn" onclick="sendWhatsAppMessage()">Send WhatsApp Message</button>
+              <div class="history-filters">
+                <label class="field">
+                  <span>Auto Follow-up Enabled</span>
+                  <select id="followup-enabled">
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Follow-up Delay (hours)</span>
+                  <input id="followup-delay-hours" type="number" min="1" max="168" value="24">
+                </label>
+              </div>
+              <div class="history-filters">
+                <label class="field">
+                  <span>Max Attempts</span>
+                  <input id="followup-max-attempts" type="number" min="1" max="10" value="2">
+                </label>
+              </div>
+              <label class="field">
+                <span>Follow-up Message Template</span>
+                <textarea id="followup-template" placeholder="Use {{name}} and {{interest}} placeholders"></textarea>
+              </label>
+              <button type="button" class="secondary-btn" onclick="saveFollowupRules()">Save Auto Follow-up Rule</button>
+              <div id="followup-log-list" class="list-block"></div>
+              <p id="whatsapp-status" class="status"></p>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">Instagram Integration</p>
+                <h2>Send a manual Instagram DM</h2>
+                <p class="section-subtitle">Use this after your Instagram Business account and token are configured.</p>
+              </div>
+              <label class="field">
+                <span>Recipient Instagram User ID</span>
+                <input id="instagram-recipient-id" type="text" placeholder="1784xxxxxxxxxxxxxx">
+              </label>
+              <label class="field">
+                <span>Message</span>
+                <textarea id="instagram-message" placeholder="Write the Instagram DM you want to send"></textarea>
+              </label>
+              <div class="stack-actions">
+                <button type="button" class="primary-btn" onclick="sendInstagramMessage()">Send Instagram DM</button>
+                <button type="button" class="secondary-btn" onclick="sendInstagramQuickTest()">Quick Test DM</button>
+              </div>
+              <p id="instagram-status" class="status"></p>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">AI Appointment Booking</p>
+                <h2>Book and manage appointment slots</h2>
+              </div>
+              <label class="field">
+                <span>Date</span>
+                <input id="booking-date" type="date">
+              </label>
+              <button type="button" class="secondary-btn" onclick="loadBookingSlots()">Check Available Slots</button>
+              <div id="booking-slot-list" class="list-block"></div>
+              <label class="field">
+                <span>Selected Time (HH:MM)</span>
+                <input id="booking-time" type="text" placeholder="10:30">
+              </label>
+              <label class="field">
+                <span>Customer Name</span>
+                <input id="booking-customer-name" type="text" placeholder="Aarav Sharma">
+              </label>
+              <label class="field">
+                <span>Customer Contact</span>
+                <input id="booking-customer-contact" type="text" placeholder="+91 98xxxxxx">
+              </label>
+              <label class="field">
+                <span>Booking Note</span>
+                <textarea id="booking-note" placeholder="Service requested, agenda, or reminder"></textarea>
+              </label>
+              <button type="button" class="primary-btn" onclick="confirmAppointmentBooking()">Confirm Booking</button>
+              <p id="booking-status" class="status"></p>
+              <div id="booking-list" class="list-block"></div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">CRM Integration</p>
+                <h2>Configure and sync leads</h2>
+              </div>
+              <label class="field">
+                <span>CRM Provider</span>
+                <select id="crm-provider">
+                  <option value="none">None</option>
+                  <option value="webhook">Webhook</option>
+                  <option value="hubspot">HubSpot (MVP placeholder)</option>
+                  <option value="zoho">Zoho (MVP placeholder)</option>
+                  <option value="pipedrive">Pipedrive (MVP placeholder)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Webhook URL (for webhook provider)</span>
+                <input id="crm-webhook-url" type="url" placeholder="https://your-crm-webhook-url">
+              </label>
+              <label class="field">
+                <span>API Key / Token (optional)</span>
+                <input id="crm-api-key" type="text" placeholder="Optional token">
+              </label>
+              <label class="field">
+                <span>Enable CRM Sync</span>
+                <select id="crm-enabled">
+                  <option value="false">Disabled</option>
+                  <option value="true">Enabled</option>
+                </select>
+              </label>
+              <div class="stack-actions">
+                <button type="button" class="secondary-btn" onclick="saveCrmConfig()">Save CRM Config</button>
+                <button type="button" class="primary-btn" onclick="syncLeadsToCrm()">Sync Leads to CRM</button>
+              </div>
+              <p id="crm-status" class="status"></p>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <p class="mini-label">Voice AI</p>
+                <h2>Process transcript and get AI response</h2>
+              </div>
+              <label class="field">
+                <span>Voice Transcript</span>
+                <textarea id="voice-transcript" placeholder="Paste voice-to-text transcript here"></textarea>
+              </label>
+              <label class="field">
+                <span>Language Hint</span>
+                <select id="voice-language">
+                  <option value="auto">Auto</option>
+                  <option value="en-IN">English (India)</option>
+                  <option value="hi-IN">Hindi</option>
+                </select>
+              </label>
+              <button type="button" class="primary-btn" onclick="processVoiceSession()">Process Voice Session</button>
+              <p id="voice-status" class="status"></p>
+              <div id="voice-session-list" class="list-block"></div>
+            </section>
+          </aside>
         </div>
-        <h3>AI Reply</h3>
-        <p id="output" class="reply-output"></p>
       </section>
+
       <section id="history-view" class="view hidden">
-        <h2>Reply History</h2>
+        <div class="section-heading section-heading-compact">
+          <p class="mini-label">Reply History</p>
+          <h2>Search previous conversations</h2>
+          <p class="section-subtitle">Review messages, channels, and generated replies from your workspace history.</p>
+        </div>
         <div class="history-filters">
-          <input id="history-search" type="text" placeholder="Search by message or reply" oninput="applyHistoryFilters()">
+          <input id="history-search" type="text" placeholder="Search by message, lead, source, or reply" oninput="applyHistoryFilters()">
           <input id="history-date" type="date" onchange="applyHistoryFilters()">
+          <select id="history-channel" onchange="applyHistoryFilters()">
+            <option value="">All Channels</option>
+            <option value="website">Website Chatbot</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+          </select>
           <button type="button" class="ghost-btn" onclick="clearHistoryFilters()">Clear Filters</button>
         </div>
         <div id="history-list" class="list-block"></div>
       </section>
+
       <section id="profile-view" class="view hidden">
-        <h2>Profile / Settings</h2>
-        <div id="profile-summary" class="list-block"></div>
-        <h3>Change Password</h3>
-        <input id="current-password" type="password" placeholder="Current password">
-        <input id="new-password" type="password" placeholder="New password (8+ chars, upper/lower/number/symbol)">
-        <button type="button" class="primary-btn" onclick="changePassword()">Update Password</button>
+        <div class="profile-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <p class="mini-label">Workspace Profile</p>
+              <h2>Plan and account summary</h2>
+            </div>
+            <div id="profile-summary" class="list-block"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <p class="mini-label">Business Profile</p>
+              <h2>Business data saved for AI</h2>
+            </div>
+            <div class="form-grid form-grid-two">
+              <label class="field">
+                <span>Brand Name</span>
+                <input id="business-brand-name" type="text" placeholder="Your company name">
+              </label>
+              <label class="field">
+                <span>Business Type</span>
+                <input id="business-type" type="text" placeholder="Agency, salon, clinic, SaaS">
+              </label>
+              <label class="field">
+                <span>Tagline</span>
+                <input id="business-tagline" type="text" placeholder="Short one-line positioning">
+              </label>
+              <label class="field">
+                <span>Location</span>
+                <input id="business-location" type="text" placeholder="City, region, service area">
+              </label>
+              <label class="field">
+                <span>Support Email</span>
+                <input id="business-support-email" type="email" placeholder="support@example.com">
+              </label>
+              <label class="field">
+                <span>Support Phone</span>
+                <input id="business-support-phone" type="text" placeholder="+91 98xxxxxx">
+              </label>
+            </div>
+            <label class="field">
+              <span>Website URL</span>
+              <input id="business-website-url" type="url" placeholder="https://yourdomain.com">
+            </label>
+            <label class="field">
+              <span>Business Description</span>
+              <textarea id="business-description" placeholder="What you do, who you serve, and what makes you different"></textarea>
+            </label>
+            <label class="field">
+              <span>Offer Summary</span>
+              <textarea id="business-offer-summary" placeholder="Products, packages, services, pricing style, or booking flow"></textarea>
+            </label>
+            <div class="form-grid form-grid-two">
+              <label class="field">
+                <span>Tone</span>
+                <input id="business-tone" type="text" placeholder="Professional, warm, concise">
+              </label>
+              <label class="field">
+                <span>Primary Goal</span>
+                <input id="business-primary-goal" type="text" placeholder="Capture leads, book demos, answer support">
+              </label>
+            </div>
+            <label class="field">
+              <span>Welcome Message</span>
+              <textarea id="business-welcome-message" placeholder="First message style for the chatbot"></textarea>
+            </label>
+            <label class="field">
+              <span>Lead Prompt</span>
+              <textarea id="business-lead-prompt" placeholder="How the chatbot should ask for name/contact details"></textarea>
+            </label>
+            <label class="field">
+              <span>Quick Replies</span>
+              <input id="business-quick-replies" type="text" placeholder="Comma separated quick replies">
+            </label>
+            <button type="button" class="primary-btn" onclick="saveBusinessProfile()">Save Business Profile</button>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <p class="mini-label">Automation Scope</p>
+              <h2>Enabled product modules</h2>
+            </div>
+            <div id="automation-summary" class="list-block"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <p class="mini-label">Widget Integration</p>
+              <h2>Install the chat widget on your website</h2>
+            </div>
+            <div id="widget-summary" class="list-block"></div>
+            <label class="field">
+              <span>Embed Snippet</span>
+              <textarea id="widget-embed-code" readonly></textarea>
+            </label>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <p class="mini-label">Owner Notifications</p>
+              <h2>Unread activity</h2>
+            </div>
+            <div id="notification-list-profile" class="list-block"></div>
+            <button type="button" class="secondary-btn" onclick="markNotificationsRead()">Mark All Read</button>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <p class="mini-label">Security</p>
+              <h2>Change password</h2>
+            </div>
+            <label class="field">
+              <span>Current Password</span>
+              <input id="current-password" type="password" placeholder="Current password">
+            </label>
+            <label class="field">
+              <span>New Password</span>
+              <input id="new-password" type="password" placeholder="8+ chars with upper, lower, number, and symbol">
+            </label>
+            <button type="button" class="primary-btn" onclick="changePassword()">Update Password</button>
+          </section>
+        </div>
       </section>
     </section>
   </main>
+
   <footer class="footer-note">
-    <small>Built for faster customer conversations.</small>
+    <small>ReplyPilot turns inbound conversations into tracked business opportunities.</small>
   </footer>
+
+  <button id="chatbot-launcher" class="chatbot-launcher" type="button" onclick="toggleChatbot()">Chat With Us</button>
+  <section id="chatbot-widget" class="chatbot-widget hidden" aria-label="Website chatbot">
+    <div class="chatbot-header">
+      <div>
+        <p class="mini-label">Step 1</p>
+        <h2 id="chatbot-title">Website Chatbot</h2>
+      </div>
+      <button type="button" class="ghost-btn chatbot-close" onclick="toggleChatbot(false)">Close</button>
+    </div>
+    <p id="chatbot-status" class="status">Chatbot ready.</p>
+
+    <div class="chatbot-visitor-grid">
+      <label class="field">
+        <span>Name</span>
+        <input id="chatbot-name" type="text" placeholder="Your name">
+      </label>
+      <label class="field">
+        <span>Phone or Email</span>
+        <input id="chatbot-contact" type="text" placeholder="Your phone or email">
+      </label>
+      <label class="field chatbot-visitor-wide">
+        <span>Interest</span>
+        <input id="chatbot-interest" type="text" placeholder="What are you looking for?">
+      </label>
+    </div>
+
+    <div id="chatbot-messages" class="chatbot-messages"></div>
+    <div id="chatbot-quick-replies" class="chatbot-quick-replies"></div>
+
+    <div class="chatbot-compose">
+      <textarea id="chatbot-input" placeholder="Type your message"></textarea>
+      <button type="button" class="primary-btn" onclick="sendChatbotMessage()">Send</button>
+    </div>
+  </section>
+
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="./script.js?v=20260419c"></script>
+  <script src="./script.js?v=20260420c"></script>
 </body>
 </html>

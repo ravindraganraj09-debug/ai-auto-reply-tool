@@ -5,16 +5,20 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "smoke:test": "node scripts/smoke-test.js"
   },
   "engines": {
     "node": "20.x"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "firebase-admin": "^13.8.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.1.1",
     "razorpay": "^2.9.6"
