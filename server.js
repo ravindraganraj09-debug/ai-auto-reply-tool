@@ -116,10 +116,25 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// Razorpay credentials. Live production keys MUST be provided via environment
+// variables and never committed to source. The secret stays server-side; only
+// the key id is ever exposed to the browser.
 const paymentConfig = {
-  key_id: process.env.KEY_ID || "YOUR_KEY_ID",
-  key_secret: process.env.KEY_SECRET || "YOUR_KEY_SECRET",
+  key_id: process.env.RAZORPAY_KEY_ID || process.env.KEY_ID || "",
+  key_secret: process.env.RAZORPAY_KEY_SECRET || process.env.KEY_SECRET || "",
 };
+
+if (!paymentConfig.key_id || !paymentConfig.key_secret) {
+  console.warn(
+    "[razorpay] Missing RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET. Payment endpoints will fail until they are configured."
+  );
+} else if (paymentConfig.key_id.startsWith("rzp_test_")) {
+  console.warn(
+    "[razorpay] Using TEST keys (rzp_test_*). Set live keys (rzp_live_*) in RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET for production."
+  );
+}
+
+const paymentsConfigured = () => Boolean(paymentConfig.key_id && paymentConfig.key_secret);
 
 // Keep supporting the old env name so existing deployments don't silently break.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GEMINIAI_API_KEY || "";
@@ -197,10 +212,22 @@ const DEFAULT_BUSINESS_PROFILE = Object.freeze({
   ],
 });
 
-const razorpay = new Razorpay({
-  key_id: paymentConfig.key_id,
-  key_secret: paymentConfig.key_secret,
-});
+// The Razorpay SDK constructor throws when keys are missing, so we lazily build
+// the client once credentials are confirmed. This lets the app boot in
+// preview/dev environments without payments being configured.
+let razorpayClient = null;
+function getRazorpayClient() {
+  if (!paymentsConfigured()) {
+    return null;
+  }
+  if (!razorpayClient) {
+    razorpayClient = new Razorpay({
+      key_id: paymentConfig.key_id,
+      key_secret: paymentConfig.key_secret,
+    });
+  }
+  return razorpayClient;
+}
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017";
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "ai_auto_reply";
@@ -3374,8 +3401,26 @@ Write one short conversion-focused response.
   }
 });
 
-app.post("/create-order", requireAuth, async (req, res) => {
+// Public, non-authenticated endpoint that exposes ONLY the publishable key id.
+// The frontend fetches this at runtime, mirroring how a Next.js app would read
+// NEXT_PUBLIC_RAZORPAY_KEY_ID at build time. The secret is never sent here.
+app.get("/api/payments/config", (_req, res) => {
+  if (!paymentsConfigured()) {
+    return res.status(503).json({ message: "Payments are not configured." });
+  }
+  res.json({
+    keyId: paymentConfig.key_id,
+    currency: premiumPlan.currency,
+    amount: premiumPlan.amount,
+  });
+});
+
+app.post("/create-order", requireAuth, sensitiveRateLimiter, async (req, res) => {
   try {
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments are not configured." });
+    }
+
     if (!isDatabaseReady()) {
       return res.status(503).json({ message: "Database unavailable. Try again." });
     }
@@ -3385,12 +3430,13 @@ app.post("/create-order", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpayClient().orders.create({
       amount: premiumPlan.amount,
       currency: premiumPlan.currency,
       receipt: `p_${Date.now()}`,
+      payment_capture: 1,
       notes: {
-        userId: req.authUserId,
+        userId: String(req.authUserId),
       },
     });
 
@@ -3399,6 +3445,9 @@ app.post("/create-order", requireAuth, async (req, res) => {
       {
         $set: {
           pendingOrderId: order.id,
+          pendingOrderAmount: order.amount,
+          pendingOrderCurrency: order.currency,
+          pendingOrderCreatedAt: new Date(),
         },
       }
     );
@@ -3410,40 +3459,115 @@ app.post("/create-order", requireAuth, async (req, res) => {
       orderId: order.id,
     });
   } catch (error) {
-    console.error("Create order failed:", error);
+    console.error("Create order failed:", error?.message || error);
     res.status(500).json({ message: "Internal server error." });
   }
 });
 
-app.post("/verify-payment", requireAuth, async (req, res) => {
+// Timing-safe comparison so an attacker cannot learn the expected signature
+// byte-by-byte from response timing.
+function safeCompareHex(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  if (a.length !== b.length) return false;
   try {
+    return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+  } catch (_error) {
+    return false;
+  }
+}
+
+app.post("/verify-payment", requireAuth, sensitiveRateLimiter, async (req, res) => {
+  try {
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments are not configured." });
+    }
+
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: "Database unavailable. Try again." });
+    }
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
     } = req.body || {};
 
-    if (!isDatabaseReady()) {
-      return res.status(503).json({ message: "Database unavailable. Try again." });
-    }
-
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    if (
+      typeof razorpay_order_id !== "string" ||
+      typeof razorpay_payment_id !== "string" ||
+      typeof razorpay_signature !== "string" ||
+      !razorpay_order_id ||
+      !razorpay_payment_id ||
+      !razorpay_signature
+    ) {
       return res.status(400).json({ message: "Payment verification data is required." });
     }
 
+    // Step 1: HMAC signature check (timing-safe).
     const expectedSignature = crypto
       .createHmac("sha256", paymentConfig.key_secret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    if (expectedSignature !== razorpay_signature) {
+    if (!safeCompareHex(expectedSignature, razorpay_signature)) {
+      logError("payment.signature_mismatch", {
+        userId: req.authUserId,
+        orderId: razorpay_order_id,
+      });
       return res.status(400).json({ message: "Invalid payment signature." });
     }
 
+    // Step 2: Confirm the order belongs to this authenticated user.
+    const user = await usersCollection.findOne({ _id: getUserLookupId(req.authUserId) });
+    if (!user || user.pendingOrderId !== razorpay_order_id) {
+      logError("payment.order_user_mismatch", {
+        userId: req.authUserId,
+        orderId: razorpay_order_id,
+      });
+      return res.status(404).json({ message: "Order not found for this user." });
+    }
+
+    // Step 3: Cross-check the payment with Razorpay's API (defends against
+    // replay/forgery even if the secret were ever leaked) and verify amount,
+    // currency, status, and order linkage.
+    let payment;
+    try {
+      payment = await getRazorpayClient().payments.fetch(razorpay_payment_id);
+    } catch (error) {
+      logError("payment.fetch_failed", {
+        message: error?.message || "unknown",
+        orderId: razorpay_order_id,
+      });
+      return res.status(502).json({ message: "Could not verify payment with gateway." });
+    }
+
+    const expectedAmount = user.pendingOrderAmount || premiumPlan.amount;
+    const expectedCurrency = user.pendingOrderCurrency || premiumPlan.currency;
+    const isPaymentValid =
+      payment &&
+      payment.order_id === razorpay_order_id &&
+      Number(payment.amount) === Number(expectedAmount) &&
+      String(payment.currency) === String(expectedCurrency) &&
+      (payment.status === "captured" || payment.status === "authorized");
+
+    if (!isPaymentValid) {
+      logError("payment.gateway_check_failed", {
+        userId: req.authUserId,
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        status: payment?.status,
+      });
+      return res.status(400).json({ message: "Payment could not be verified." });
+    }
+
+    // Step 4: Atomically activate premium and clear pending order, but only if
+    // this payment id has never been consumed before (idempotency / replay
+    // protection).
     const result = await usersCollection.updateOne(
       {
-        _id: getUserLookupId(req.authUserId),
+        _id: user._id,
         pendingOrderId: razorpay_order_id,
+        lastPaymentId: { $ne: razorpay_payment_id },
       },
       {
         $set: {
@@ -3456,17 +3580,20 @@ app.post("/verify-payment", requireAuth, async (req, res) => {
         },
         $unset: {
           pendingOrderId: "",
+          pendingOrderAmount: "",
+          pendingOrderCurrency: "",
+          pendingOrderCreatedAt: "",
         },
       }
     );
 
     if (!result.matchedCount) {
-      return res.status(404).json({ message: "User not found or order mismatch." });
+      return res.status(409).json({ message: "Order already processed." });
     }
 
     res.json({ message: "Premium activated successfully." });
   } catch (error) {
-    console.error("Verify payment failed:", error);
+    console.error("Verify payment failed:", error?.message || error);
     res.status(500).json({ message: "Internal server error." });
   }
 });

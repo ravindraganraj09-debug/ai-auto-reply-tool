@@ -1,6 +1,31 @@
+// The publishable Razorpay key id. This is the ONLY Razorpay credential that
+// the browser is allowed to see. The secret stays on the server.
+//
+// Resolution order:
+//   1. Build/runtime-injected NEXT_PUBLIC_RAZORPAY_KEY_ID (window.__ENV.*)
+//   2. Public /api/payments/config endpoint (fetched lazily before checkout)
+//   3. The key returned by /create-order (always trusted, comes from server)
 const paymentConfig = {
-  key: "YOUR_KEY_ID",
+  key: (typeof window !== "undefined"
+    && window.__ENV
+    && window.__ENV.NEXT_PUBLIC_RAZORPAY_KEY_ID)
+    || "",
 };
+
+async function ensurePaymentKey() {
+  if (paymentConfig.key) return paymentConfig.key;
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/payments/config`);
+    if (!response.ok) return "";
+    const data = await response.json();
+    if (data && data.keyId) {
+      paymentConfig.key = data.keyId;
+    }
+  } catch (_error) {
+    // Silent fallback: /create-order will still return a key.
+  }
+  return paymentConfig.key;
+}
 
 const FREE_REPLY_LIMIT = 5;
 
@@ -2034,9 +2059,10 @@ async function verifyPayment(paymentResponse) {
   await refreshWorkspace();
 }
 
-function upgradeToPremium() {
+async function upgradeToPremium() {
   if (!authToken) {
     setAppStatus("Login first to upgrade your account.");
+    window.location.hash = "contact";
     return;
   }
 
@@ -2045,10 +2071,17 @@ function upgradeToPremium() {
     return;
   }
 
-  createOrderAndOpenCheckout();
+  setAppStatus("Opening secure Razorpay checkout...");
+  try {
+    await createOrderAndOpenCheckout();
+  } catch (_error) {
+    setAppStatus("Unable to open payment checkout. Please try again.");
+  }
 }
 
 async function createOrderAndOpenCheckout() {
+  await ensurePaymentKey();
+
   const { response, data } = await apiRequest("/create-order", { method: "POST" }, true);
 
   if (!response.ok) {
@@ -2060,8 +2093,14 @@ async function createOrderAndOpenCheckout() {
     return;
   }
 
+  const checkoutKey = data.key || paymentConfig.key;
+  if (!checkoutKey) {
+    setAppStatus("Payment key not configured. Please contact support.");
+    return;
+  }
+
   const options = {
-    key: data.key || paymentConfig.key,
+    key: checkoutKey,
     amount: data.amount,
     currency: data.currency,
     order_id: data.orderId,

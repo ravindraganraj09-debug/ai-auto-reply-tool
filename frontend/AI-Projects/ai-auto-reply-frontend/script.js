@@ -1,7 +1,12 @@
 
-// Payment config (only once at the top)
+// Publishable Razorpay key id only. Secret stays on the server.
+// Resolved (in order) from NEXT_PUBLIC_RAZORPAY_KEY_ID, /api/payments/config,
+// or the key returned by /create-order.
 const paymentConfig = {
-  key: "YOUR_KEY_ID",
+  key: (typeof window !== "undefined"
+    && window.__ENV
+    && window.__ENV.NEXT_PUBLIC_RAZORPAY_KEY_ID)
+    || "",
 };
 
 function getApiBaseUrl() {
