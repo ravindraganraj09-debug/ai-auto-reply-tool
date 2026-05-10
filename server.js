@@ -98,6 +98,11 @@ const whatsappWebhookJsonParser = express.json({
     req.rawBody = buffer.toString("utf8");
   },
 });
+
+// Razorpay webhook signing requires the EXACT raw body bytes. Use a dedicated
+// raw parser so JSON pretty-printing or normalisation cannot alter the bytes
+// we hash with the webhook secret.
+const razorpayWebhookRawParser = express.raw({ type: "application/json", limit: "1mb" });
 app.use(express.static(path.join(__dirname, "frontend")));
 app.use(express.static(__dirname));
 
@@ -170,9 +175,23 @@ const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY || "";
 const MONGO_SERVER_SELECTION_TIMEOUT_MS = Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS) || 2000;
 
 // Subscription catalog. Amount is in paise (INR * 100). `replyLimit: -1`
-// represents unlimited replies. Each paid plan is sold as a one-time monthly
-// payment (period: 30 days) — true auto-debit subscriptions can later be
-// layered on top of Razorpay Subscriptions API by adding `razorpayPlanId`.
+// represents unlimited replies.
+//
+// Each paid plan supports TWO billing modes:
+//   1. Recurring (preferred): if `razorpayPlanId` is set via the
+//      RAZORPAY_PLAN_ID_<PLAN> env var, the frontend uses Razorpay
+//      Subscriptions (auto-debit via UPI Autopay / e-mandate / card recurring).
+//      Webhooks then keep the user's premiumExpiresAt rolling forward on every
+//      `subscription.charged` event.
+//   2. One-time fallback: if no plan id is configured, the legacy /create-order
+//      flow charges the user once for `durationDays` of access.
+//
+// To enable recurring billing, create a Plan in Razorpay dashboard for each
+// tier (Plans -> Create plan, billing cycle = monthly, price in paise) and set:
+//   RAZORPAY_PLAN_ID_STARTER=plan_xxx
+//   RAZORPAY_PLAN_ID_PRO=plan_xxx
+//   RAZORPAY_PLAN_ID_BUSINESS=plan_xxx
+//   RAZORPAY_WEBHOOK_SECRET=<the webhook secret you set in dashboard>
 const PLANS = Object.freeze({
   free: Object.freeze({
     id: "free",
@@ -182,6 +201,7 @@ const PLANS = Object.freeze({
     replyLimit: 20,
     durationDays: 0,
     paid: false,
+    razorpayPlanId: "",
     tagline: "Validate the workflow",
     features: Object.freeze([
       "20 AI replies / month",
@@ -198,6 +218,7 @@ const PLANS = Object.freeze({
     replyLimit: 500,
     durationDays: 30,
     paid: true,
+    razorpayPlanId: process.env.RAZORPAY_PLAN_ID_STARTER || "",
     tagline: "Get going on WhatsApp",
     features: Object.freeze([
       "500 AI replies / month",
@@ -214,6 +235,7 @@ const PLANS = Object.freeze({
     replyLimit: 2500,
     durationDays: 30,
     paid: true,
+    razorpayPlanId: process.env.RAZORPAY_PLAN_ID_PRO || "",
     tagline: "Scale your inbox",
     features: Object.freeze([
       "2,500 AI replies / month",
@@ -231,6 +253,7 @@ const PLANS = Object.freeze({
     replyLimit: -1,
     durationDays: 30,
     paid: true,
+    razorpayPlanId: process.env.RAZORPAY_PLAN_ID_BUSINESS || "",
     tagline: "Run the whole revenue desk",
     features: Object.freeze([
       "Unlimited AI replies",
@@ -242,6 +265,12 @@ const PLANS = Object.freeze({
   }),
 });
 
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
+// How many billing cycles a new subscription should run before Razorpay
+// stops attempting auto-debit. 12 = roughly one year, after which the
+// customer is asked to subscribe again.
+const SUBSCRIPTION_TOTAL_COUNT = Number(process.env.RAZORPAY_SUBSCRIPTION_TOTAL_COUNT) || 12;
+
 const PUBLIC_PLAN_LIST = Object.freeze(Object.values(PLANS).map((plan) => ({
   id: plan.id,
   name: plan.name,
@@ -250,6 +279,7 @@ const PUBLIC_PLAN_LIST = Object.freeze(Object.values(PLANS).map((plan) => ({
   replyLimit: plan.replyLimit,
   durationDays: plan.durationDays,
   paid: plan.paid,
+  recurring: Boolean(plan.razorpayPlanId),
   tagline: plan.tagline,
   features: plan.features,
 })));
@@ -919,12 +949,25 @@ function getIntegrationStatus() {
   };
 }
 
+// Statuses that mean the subscription should NO LONGER grant access.
+const SUBSCRIPTION_TERMINAL_STATUSES = new Set([
+  "cancelled",
+  "completed",
+  "expired",
+  "halted",
+]);
+
 function getActivePlanForUser(user) {
   const planId = user.planId || (user.premium ? "starter" : "free");
   const plan = getPlan(planId) || FREE_PLAN;
   const expiresAt = user.premiumExpiresAt ? new Date(user.premiumExpiresAt) : null;
   const isExpired = expiresAt && expiresAt.getTime() < Date.now();
-  return isExpired && plan.paid ? FREE_PLAN : plan;
+  const subStatus = String(user.subscriptionStatus || "").toLowerCase();
+  const subscriptionDead = subStatus && SUBSCRIPTION_TERMINAL_STATUSES.has(subStatus);
+  if (plan.paid && (isExpired || subscriptionDead)) {
+    return FREE_PLAN;
+  }
+  return plan;
 }
 
 function toPublicUser(user) {
@@ -948,6 +991,10 @@ function toPublicUser(user) {
     planId: activePlan.id,
     planName: activePlan.name,
     planFeatures: activePlan.features,
+    subscriptionId: user.subscriptionId || null,
+    subscriptionStatus: user.subscriptionStatus || null,
+    subscriptionShortUrl: user.subscriptionShortUrl || null,
+    subscriptionCancelAtCycleEnd: Boolean(user.subscriptionCancelAtCycleEnd),
     usage,
     replyLimit: isUnlimited ? null : activePlan.replyLimit,
     remainingReplies,
@@ -3523,6 +3570,368 @@ app.get("/api/payments/config", (_req, res) => {
 // Public plan catalog so the marketing/pricing page can render dynamically.
 app.get("/api/plans", (_req, res) => {
   res.json({ plans: PUBLIC_PLAN_LIST });
+});
+
+// ---------------------------------------------------------------------------
+// Razorpay Subscriptions (true auto-debit recurring billing)
+// ---------------------------------------------------------------------------
+
+// Create a subscription for the authenticated user. The browser opens
+// Razorpay Checkout with `subscription_id` (NOT `order_id`). On success the
+// user gets redirected back with razorpay_payment_id / razorpay_subscription_id
+// / razorpay_signature which we then verify in /verify-subscription.
+app.post("/create-subscription", requireAuth, sensitiveRateLimiter, async (req, res) => {
+  try {
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments are not configured." });
+    }
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: "Database unavailable. Try again." });
+    }
+
+    const requestedPlanId = String(req.body?.planId || "").toLowerCase();
+    const plan = getPlan(requestedPlanId);
+    if (!plan || !plan.paid) {
+      return res.status(400).json({ message: "Unknown or non-billable plan." });
+    }
+    if (!plan.razorpayPlanId) {
+      return res.status(400).json({
+        message: `Recurring billing is not configured for ${plan.name}. Set RAZORPAY_PLAN_ID_${plan.id.toUpperCase()} on the server.`,
+      });
+    }
+
+    const user = await usersCollection.findOne({ _id: getUserLookupId(req.authUserId) });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const subscription = await getRazorpayClient().subscriptions.create({
+      plan_id: plan.razorpayPlanId,
+      total_count: SUBSCRIPTION_TOTAL_COUNT,
+      customer_notify: 1,
+      notes: {
+        userId: String(req.authUserId),
+        planId: plan.id,
+        planName: plan.name,
+      },
+    });
+
+    await usersCollection.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          pendingSubscriptionId: subscription.id,
+          pendingSubscriptionPlanId: plan.id,
+          pendingSubscriptionCreatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({
+      key: paymentConfig.key_id,
+      subscriptionId: subscription.id,
+      planId: plan.id,
+      planName: plan.name,
+      amount: plan.amount,
+      currency: plan.currency,
+      shortUrl: subscription.short_url || null,
+    });
+  } catch (error) {
+    console.error("Create subscription failed:", error?.message || error);
+    res.status(500).json({ message: "Failed to start subscription." });
+  }
+});
+
+// Verify the signature returned by Razorpay Checkout after the customer
+// authorises the e-mandate / first auto-debit. HMAC formula for subscriptions:
+//   HMAC_SHA256(payment_id + "|" + subscription_id, key_secret)
+app.post("/verify-subscription", requireAuth, sensitiveRateLimiter, async (req, res) => {
+  try {
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments are not configured." });
+    }
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: "Database unavailable. Try again." });
+    }
+
+    const {
+      razorpay_payment_id,
+      razorpay_subscription_id,
+      razorpay_signature,
+    } = req.body || {};
+
+    if (
+      typeof razorpay_payment_id !== "string" ||
+      typeof razorpay_subscription_id !== "string" ||
+      typeof razorpay_signature !== "string" ||
+      !razorpay_payment_id ||
+      !razorpay_subscription_id ||
+      !razorpay_signature
+    ) {
+      return res.status(400).json({ message: "Subscription verification data is required." });
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", paymentConfig.key_secret)
+      .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
+      .digest("hex");
+
+    if (!safeCompareHex(expectedSignature, razorpay_signature)) {
+      logError("subscription.signature_mismatch", {
+        userId: req.authUserId,
+        subscriptionId: razorpay_subscription_id,
+      });
+      return res.status(400).json({ message: "Invalid subscription signature." });
+    }
+
+    const user = await usersCollection.findOne({ _id: getUserLookupId(req.authUserId) });
+    if (!user || user.pendingSubscriptionId !== razorpay_subscription_id) {
+      logError("subscription.user_mismatch", {
+        userId: req.authUserId,
+        subscriptionId: razorpay_subscription_id,
+      });
+      return res.status(404).json({ message: "Subscription not found for this user." });
+    }
+
+    // Cross-check the subscription with Razorpay's API (status + plan id).
+    let subscription;
+    try {
+      subscription = await getRazorpayClient().subscriptions.fetch(razorpay_subscription_id);
+    } catch (error) {
+      logError("subscription.fetch_failed", {
+        message: error?.message || "unknown",
+        subscriptionId: razorpay_subscription_id,
+      });
+      return res.status(502).json({ message: "Could not verify subscription with gateway." });
+    }
+
+    const pendingPlan = getPlan(user.pendingSubscriptionPlanId) || PLANS.starter;
+    const planMatches = subscription?.plan_id === pendingPlan.razorpayPlanId;
+    const goodStatus = ["authenticated", "active", "trialing"].includes(
+      String(subscription?.status || "").toLowerCase()
+    );
+    if (!subscription || !planMatches || !goodStatus) {
+      logError("subscription.gateway_check_failed", {
+        userId: req.authUserId,
+        subscriptionId: razorpay_subscription_id,
+        status: subscription?.status,
+        planMatches,
+      });
+      return res.status(400).json({ message: "Subscription could not be verified." });
+    }
+
+    const now = new Date();
+    const fallbackExpiry = new Date(now.getTime() + (pendingPlan.durationDays || 30) * 24 * 60 * 60 * 1000);
+    const periodEnd = subscription.current_end
+      ? new Date(subscription.current_end * 1000)
+      : fallbackExpiry;
+
+    await usersCollection.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          premium: true,
+          planId: pendingPlan.id,
+          planName: pendingPlan.name,
+          subscriptionId: subscription.id,
+          subscriptionStatus: subscription.status,
+          subscriptionPlanId: subscription.plan_id,
+          subscriptionShortUrl: subscription.short_url || null,
+          subscriptionCancelAtCycleEnd: false,
+          lastPaymentId: razorpay_payment_id,
+          premiumActivatedAt: now,
+          premiumExpiresAt: periodEnd,
+        },
+        $unset: {
+          pendingSubscriptionId: "",
+          pendingSubscriptionPlanId: "",
+          pendingSubscriptionCreatedAt: "",
+        },
+      }
+    );
+
+    res.json({
+      message: `${pendingPlan.name} subscription activated.`,
+      planId: pendingPlan.id,
+      planName: pendingPlan.name,
+      subscriptionId: subscription.id,
+      expiresAt: periodEnd.toISOString(),
+    });
+  } catch (error) {
+    console.error("Verify subscription failed:", error?.message || error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+// User-initiated cancel. Defaults to "cancel at end of current cycle" so the
+// customer keeps access for the period they already paid for.
+app.post("/cancel-subscription", requireAuth, sensitiveRateLimiter, async (req, res) => {
+  try {
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments are not configured." });
+    }
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: "Database unavailable. Try again." });
+    }
+
+    const user = await usersCollection.findOne({ _id: getUserLookupId(req.authUserId) });
+    if (!user || !user.subscriptionId) {
+      return res.status(404).json({ message: "No active subscription found." });
+    }
+
+    const cancelImmediately = Boolean(req.body?.immediate);
+    const cancelled = await getRazorpayClient().subscriptions.cancel(
+      user.subscriptionId,
+      cancelImmediately ? false : true // SDK signature: cancelAtCycleEnd boolean
+    );
+
+    await usersCollection.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          subscriptionStatus: cancelled?.status || "cancelled",
+          subscriptionCancelAtCycleEnd: !cancelImmediately,
+        },
+      }
+    );
+
+    res.json({
+      message: cancelImmediately
+        ? "Subscription cancelled immediately."
+        : "Subscription will cancel at the end of the current billing cycle.",
+      status: cancelled?.status || "cancelled",
+    });
+  } catch (error) {
+    console.error("Cancel subscription failed:", error?.message || error);
+    res.status(500).json({ message: "Failed to cancel subscription." });
+  }
+});
+
+// Webhook receiver. Razorpay POSTs subscription / payment events here.
+// Signed with HMAC_SHA256(rawBody, RAZORPAY_WEBHOOK_SECRET) in the
+// `x-razorpay-signature` header.
+app.post("/webhooks/razorpay", razorpayWebhookRawParser, async (req, res) => {
+  try {
+    if (!RAZORPAY_WEBHOOK_SECRET) {
+      logError("razorpay.webhook.secret_missing", {});
+      return res.status(503).json({ message: "Webhook secret not configured." });
+    }
+
+    const signature = String(req.headers["x-razorpay-signature"] || "");
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
+    const expected = crypto
+      .createHmac("sha256", RAZORPAY_WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest("hex");
+
+    if (!safeCompareHex(expected, signature)) {
+      logError("razorpay.webhook.signature_mismatch", {});
+      return res.status(401).json({ message: "Invalid signature." });
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(rawBody.toString("utf8") || "{}");
+    } catch (_error) {
+      return res.status(400).json({ message: "Invalid JSON." });
+    }
+
+    const event = String(payload?.event || "");
+    const sub = payload?.payload?.subscription?.entity || null;
+    const pay = payload?.payload?.payment?.entity || null;
+    const subscriptionId = sub?.id || pay?.subscription_id || null;
+
+    if (!subscriptionId) {
+      // Not a subscription event — ack and skip (e.g. order.paid for one-time).
+      return res.json({ ok: true, ignored: event });
+    }
+
+    if (!isDatabaseReady()) {
+      return res.status(503).json({ message: "Database unavailable." });
+    }
+
+    const user = await usersCollection.findOne({
+      $or: [
+        { subscriptionId },
+        { pendingSubscriptionId: subscriptionId },
+      ],
+    });
+    if (!user) {
+      logInfo("razorpay.webhook.unknown_subscription", { event, subscriptionId });
+      return res.json({ ok: true, ignored: "user_not_found" });
+    }
+
+    const planId = sub?.notes?.planId || user.planId || user.pendingSubscriptionPlanId || "starter";
+    const plan = getPlan(planId) || PLANS.starter;
+    const updates = {};
+    const unsets = {};
+
+    switch (event) {
+      case "subscription.authenticated":
+      case "subscription.activated":
+      case "subscription.resumed": {
+        updates.premium = true;
+        updates.planId = plan.id;
+        updates.planName = plan.name;
+        updates.subscriptionId = subscriptionId;
+        updates.subscriptionStatus = sub?.status || "active";
+        updates.subscriptionCancelAtCycleEnd = false;
+        if (sub?.current_end) {
+          updates.premiumExpiresAt = new Date(sub.current_end * 1000);
+        }
+        unsets.pendingSubscriptionId = "";
+        unsets.pendingSubscriptionPlanId = "";
+        break;
+      }
+      case "subscription.charged": {
+        updates.premium = true;
+        updates.planId = plan.id;
+        updates.planName = plan.name;
+        updates.subscriptionStatus = sub?.status || "active";
+        updates.lastPaymentId = pay?.id || user.lastPaymentId || null;
+        updates.lastChargedAt = new Date();
+        if (sub?.current_end) {
+          updates.premiumExpiresAt = new Date(sub.current_end * 1000);
+        }
+        break;
+      }
+      case "subscription.pending":
+      case "subscription.halted": {
+        updates.subscriptionStatus = sub?.status || "halted";
+        break;
+      }
+      case "subscription.paused": {
+        updates.subscriptionStatus = sub?.status || "paused";
+        break;
+      }
+      case "subscription.cancelled":
+      case "subscription.completed":
+      case "subscription.expired": {
+        updates.subscriptionStatus = sub?.status || event.replace("subscription.", "");
+        // Keep premium until the period the user already paid for runs out.
+        // getActivePlanForUser will automatically fall back to Free when the
+        // expiry date passes or when the status is in the terminal set.
+        break;
+      }
+      default: {
+        // No-op for other events (e.g. payment.failed without subscription).
+        break;
+      }
+    }
+
+    if (Object.keys(updates).length || Object.keys(unsets).length) {
+      const update = {};
+      if (Object.keys(updates).length) update.$set = updates;
+      if (Object.keys(unsets).length) update.$unset = unsets;
+      await usersCollection.updateOne({ _id: user._id }, update);
+    }
+
+    logInfo("razorpay.webhook.processed", { event, subscriptionId });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Razorpay webhook failed:", error?.message || error);
+    res.status(500).json({ message: "Webhook handler failed." });
+  }
 });
 
 app.post("/create-order", requireAuth, sensitiveRateLimiter, async (req, res) => {

@@ -1026,19 +1026,34 @@ function renderProfileSummary() {
     return;
   }
 
+  const subscriptionStatus = currentUser.subscriptionStatus
+    ? `${currentUser.subscriptionStatus}${currentUser.subscriptionCancelAtCycleEnd ? " (cancels at cycle end)" : ""}`
+    : "None";
+
   profileSummary.innerHTML = buildSummaryLines([
     { label: "Email", value: currentUser.email || "Not available" },
     { label: "Workspace ID", value: currentUser.publicWorkspaceId || "Not available" },
     { label: "Workspace Storage", value: getIntegrationStatus().databaseMode === "local-json" ? "Local JSON (dev mode)" : "MongoDB" },
     { label: "Plan", value: currentUser.planName || "Free" },
     { label: "Premium Status", value: currentUser.premium ? "Active" : "Inactive" },
+    { label: "Subscription", value: subscriptionStatus },
     { label: "Usage Count", value: String(currentUser.usage || 0) },
-    { label: "Remaining Replies", value: currentUser.premium ? "Unlimited" : String(currentUser.remainingReplies ?? FREE_REPLY_LIMIT) },
+    { label: "Remaining Replies", value: currentUser.premium && (currentUser.replyLimit === null || currentUser.replyLimit === undefined) ? "Unlimited" : String(currentUser.remainingReplies ?? FREE_REPLY_LIMIT) },
     { label: "Lead Count", value: String(currentUser.leadCount || 0) },
     { label: "Unread Notifications", value: String(currentUser.unreadNotificationCount || 0) },
     { label: "Premium Activated", value: formatDateTime(currentUser.premiumActivatedAt) },
     { label: "Premium Expires", value: formatDate(currentUser.premiumExpiresAt) },
   ]);
+
+  const subscriptionActions = document.getElementById("subscription-actions");
+  if (subscriptionActions) {
+    const canCancel = Boolean(currentUser.subscriptionId)
+      && !currentUser.subscriptionCancelAtCycleEnd
+      && !["cancelled", "completed", "expired", "halted"].includes(String(currentUser.subscriptionStatus || "").toLowerCase());
+    subscriptionActions.innerHTML = canCancel
+      ? '<button type="button" class="ghost-btn" onclick="cancelSubscription()">Cancel Subscription</button>'
+      : "";
+  }
 }
 
 function renderAutomationSummary() {
@@ -2062,6 +2077,9 @@ async function verifyPayment(paymentResponse) {
 }
 
 // Plan-aware upgrade entry point used by every "Upgrade to <Plan>" button.
+// Tries true auto-debit subscription first; if the server tells us the plan
+// has no Razorpay plan id configured, transparently falls back to a one-time
+// monthly order so the upgrade button still works.
 async function upgradeToPlan(planId) {
   if (!planId || planId === "free") {
     setAppStatus("You are already on the Free plan. Sign up to start using it.");
@@ -2082,15 +2100,106 @@ async function upgradeToPlan(planId) {
 
   setAppStatus(`Opening secure Razorpay checkout for the ${planId} plan...`);
   try {
-    await createOrderAndOpenCheckout(planId);
+    const startedSubscription = await createSubscriptionAndOpenCheckout(planId);
+    if (!startedSubscription) {
+      await createOrderAndOpenCheckout(planId);
+    }
   } catch (_error) {
     setAppStatus("Unable to open payment checkout. Please try again.");
   }
 }
 
-// Backwards compatibility for any cached HTML still calling upgradeToPremium().
 async function upgradeToPremium() {
   return upgradeToPlan("starter");
+}
+
+// Returns true if the subscription checkout was opened (or auth failed and we
+// already redirected). Returns false ONLY when the server says recurring
+// billing is not configured for this plan, signalling the caller to fall back
+// to the one-time order flow.
+async function createSubscriptionAndOpenCheckout(planId) {
+  await ensurePaymentKey();
+
+  const { response, data } = await apiRequest(
+    "/create-subscription",
+    {
+      method: "POST",
+      body: JSON.stringify({ planId }),
+    },
+    true
+  );
+
+  if (response.status === 401) {
+    logout();
+    return true;
+  }
+
+  if (response.status === 400 && /not configured/i.test(data?.message || "")) {
+    return false;
+  }
+
+  if (!response.ok) {
+    setAppStatus(data?.message || "Unable to start subscription.");
+    return true;
+  }
+
+  const checkoutKey = data.key || paymentConfig.key;
+  if (!checkoutKey) {
+    setAppStatus("Payment key not configured. Please contact support.");
+    return true;
+  }
+
+  const options = {
+    key: checkoutKey,
+    subscription_id: data.subscriptionId,
+    name: "ReplyPilot",
+    description: `${data.planName || "Premium"} plan (auto-debit, monthly)`,
+    handler: async function handler(paymentResponse) {
+      await verifySubscription(paymentResponse);
+    },
+    theme: {
+      color: "#34d3a4",
+    },
+  };
+
+  const razorpayInstance = new window.Razorpay(options);
+  razorpayInstance.open();
+  return true;
+}
+
+async function verifySubscription(paymentResponse) {
+  const { response, data } = await apiRequest(
+    "/verify-subscription",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        razorpay_payment_id: paymentResponse.razorpay_payment_id,
+        razorpay_subscription_id: paymentResponse.razorpay_subscription_id,
+        razorpay_signature: paymentResponse.razorpay_signature,
+      }),
+    },
+    true
+  );
+
+  if (response.status === 401) {
+    logout();
+    return;
+  }
+
+  setAppStatus(data?.message || "Subscription updated.");
+  await refreshWorkspace();
+}
+
+async function cancelSubscription() {
+  if (!authToken) return;
+  if (!window.confirm("Cancel your subscription at the end of the current billing cycle?")) return;
+  const { response, data } = await apiRequest("/cancel-subscription", { method: "POST", body: JSON.stringify({}) }, true);
+  if (response.status === 401) {
+    logout();
+    return;
+  }
+  setAppStatus(data?.message || "Subscription update requested.");
+  await refreshWorkspace();
 }
 
 async function createOrderAndOpenCheckout(planId) {
@@ -2126,7 +2235,7 @@ async function createOrderAndOpenCheckout(planId) {
     currency: data.currency,
     order_id: data.orderId,
     name: "ReplyPilot",
-    description: `${data.planName || "Premium"} plan (monthly)`,
+    description: `${data.planName || "Premium"} plan (one-time monthly)`,
     handler: async function handler(paymentResponse) {
       await verifyPayment(paymentResponse);
     },
