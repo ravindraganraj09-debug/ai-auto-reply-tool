@@ -3576,6 +3576,62 @@ app.get("/api/plans", (_req, res) => {
 // Razorpay Subscriptions (true auto-debit recurring billing)
 // ---------------------------------------------------------------------------
 
+// Defensive guard: before we let a customer authorise a subscription, fetch
+// the plan from Razorpay and confirm the amount + currency in the dashboard
+// matches what we advertise on our pricing page. This catches the classic
+// foot-gun where Plan IDs get pasted into the wrong RAZORPAY_PLAN_ID_* env
+// var and a customer ends up charged the wrong amount. Cached for 5 minutes
+// so we are not hitting Razorpay's API on every checkout.
+const RAZORPAY_PLAN_CACHE_TTL_MS = 5 * 60 * 1000;
+const razorpayPlanCache = new Map();
+
+async function fetchRazorpayPlanCached(planId) {
+  if (!planId) return null;
+  const cached = razorpayPlanCache.get(planId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.plan;
+  }
+  const client = getRazorpayClient();
+  if (!client) return null;
+  const plan = await client.plans.fetch(planId);
+  razorpayPlanCache.set(planId, {
+    plan,
+    expiresAt: Date.now() + RAZORPAY_PLAN_CACHE_TTL_MS,
+  });
+  return plan;
+}
+
+// Returns null when the configured plan matches Razorpay, or an error message
+// describing the mismatch. Never throws — a Razorpay API failure is reported
+// as a soft warning and lets the subscription proceed (we don't want a
+// transient gateway hiccup to block all upgrades).
+async function verifyRazorpayPlanMatchesLocal(plan) {
+  if (!plan?.razorpayPlanId) return null;
+  let remote;
+  try {
+    remote = await fetchRazorpayPlanCached(plan.razorpayPlanId);
+  } catch (error) {
+    logError("razorpay.plan_fetch_failed", {
+      planId: plan.id,
+      razorpayPlanId: plan.razorpayPlanId,
+      message: error?.message || "unknown",
+    });
+    return null;
+  }
+  if (!remote || !remote.item) return null;
+  const remoteAmount = Number(remote.item.amount);
+  const remoteCurrency = String(remote.item.currency || "").toUpperCase();
+  const expectedAmount = Number(plan.amount);
+  const expectedCurrency = String(plan.currency || "").toUpperCase();
+  if (remoteAmount !== expectedAmount) {
+    return `Plan mismatch: ${plan.name} is configured for ${expectedCurrency} ${(expectedAmount / 100).toFixed(2)} on the server but Razorpay plan ${plan.razorpayPlanId} is set to ${remoteCurrency} ${(remoteAmount / 100).toFixed(2)}. Fix the RAZORPAY_PLAN_ID_${plan.id.toUpperCase()} env var or update the Razorpay plan amount.`;
+  }
+  if (remoteCurrency !== expectedCurrency) {
+    return `Currency mismatch on plan ${plan.name}: server says ${expectedCurrency}, Razorpay says ${remoteCurrency}.`;
+  }
+  return null;
+}
+
 // Create a subscription for the authenticated user. The browser opens
 // Razorpay Checkout with `subscription_id` (NOT `order_id`). On success the
 // user gets redirected back with razorpay_payment_id / razorpay_subscription_id
@@ -3597,6 +3653,20 @@ app.post("/create-subscription", requireAuth, sensitiveRateLimiter, async (req, 
     if (!plan.razorpayPlanId) {
       return res.status(400).json({
         message: `Recurring billing is not configured for ${plan.name}. Set RAZORPAY_PLAN_ID_${plan.id.toUpperCase()} on the server.`,
+      });
+    }
+
+    // Guard against env-var swap / dashboard mis-configuration: refuse to
+    // let a customer authorise a mandate for the wrong amount.
+    const planMismatch = await verifyRazorpayPlanMatchesLocal(plan);
+    if (planMismatch) {
+      logError("razorpay.plan_mismatch_blocked", {
+        planId: plan.id,
+        razorpayPlanId: plan.razorpayPlanId,
+        message: planMismatch,
+      });
+      return res.status(500).json({
+        message: "This plan is mis-configured on the server. Please contact support.",
       });
     }
 
