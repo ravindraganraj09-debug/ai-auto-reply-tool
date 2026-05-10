@@ -356,6 +356,22 @@ function showApp() {
   document.getElementById("app-page").classList.remove("hidden");
 }
 
+function showPricingPlans() {
+  const landingPage = document.getElementById("landing-page");
+  const appPage = document.getElementById("app-page");
+  const pricingSection = document.getElementById("pricing");
+
+  if (landingPage) {
+    landingPage.classList.remove("hidden");
+  }
+  if (appPage) {
+    appPage.classList.add("hidden");
+  }
+
+  window.location.hash = "pricing";
+  pricingSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function setVisibleView(viewId) {
   const views = document.querySelectorAll(".view");
   views.forEach((view) => view.classList.add("hidden"));
