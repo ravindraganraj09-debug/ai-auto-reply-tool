@@ -81,6 +81,19 @@ function setAppStatus(message) {
   }
 }
 
+// Upgrade status helper: writes to whichever status banner is currently
+// visible (landing #auth-status when signed-out / on the pricing section,
+// dashboard #app-status when inside the app). This guarantees users see
+// payment / checkout messages no matter which page they are on.
+function setUpgradeStatus(message) {
+  const text = String(message || "");
+  setLandingStatus(text);
+  setAppStatus(text);
+  if (text) {
+    console.log("[upgrade]", text);
+  }
+}
+
 function setChatbotStatus(message) {
   const chatbotStatus = document.getElementById("chatbot-status");
   if (chatbotStatus) {
@@ -2098,30 +2111,31 @@ async function verifyPayment(paymentResponse) {
 // monthly order so the upgrade button still works.
 async function upgradeToPlan(planId) {
   if (!planId || planId === "free") {
-    setAppStatus("You are already on the Free plan. Sign up to start using it.");
+    setUpgradeStatus("You are already on the Free plan. Sign up to start using it.");
     window.location.hash = "contact";
     return;
   }
 
   if (!authToken) {
-    setAppStatus("Login first to upgrade your account.");
+    setUpgradeStatus("Login first to upgrade your account.");
     window.location.hash = "contact";
     return;
   }
 
   if (!window.Razorpay) {
-    setAppStatus("Razorpay SDK not loaded. Refresh and try again.");
+    setUpgradeStatus("Razorpay SDK not loaded. Refresh the page and try again.");
     return;
   }
 
-  setAppStatus(`Opening secure Razorpay checkout for the ${planId} plan...`);
+  setUpgradeStatus(`Opening secure Razorpay checkout for the ${planId} plan...`);
   try {
     const startedSubscription = await createSubscriptionAndOpenCheckout(planId);
     if (!startedSubscription) {
       await createOrderAndOpenCheckout(planId);
     }
-  } catch (_error) {
-    setAppStatus("Unable to open payment checkout. Please try again.");
+  } catch (error) {
+    console.error("[upgrade] checkout failed", error);
+    setUpgradeStatus("Unable to open payment checkout. Please try again in a moment.");
   }
 }
 
@@ -2130,38 +2144,42 @@ async function upgradeToPremium() {
 }
 
 // Returns true if the subscription checkout was opened (or auth failed and we
-// already redirected). Returns false ONLY when the server says recurring
-// billing is not configured for this plan, signalling the caller to fall back
-// to the one-time order flow.
+// already redirected). Returns false whenever recurring billing is not
+// available for any reason (endpoint missing on an older backend, plan id not
+// configured, network glitch, etc.) so the caller can fall back to the
+// one-time order flow without the user noticing.
 async function createSubscriptionAndOpenCheckout(planId) {
   await ensurePaymentKey();
 
-  const { response, data } = await apiRequest(
-    "/create-subscription",
-    {
-      method: "POST",
-      body: JSON.stringify({ planId }),
-    },
-    true
-  );
+  let response;
+  let data;
+  try {
+    const result = await apiRequest(
+      "/create-subscription",
+      {
+        method: "POST",
+        body: JSON.stringify({ planId }),
+      },
+      true
+    );
+    response = result.response;
+    data = result.data;
+  } catch (_error) {
+    return false;
+  }
 
   if (response.status === 401) {
     logout();
     return true;
   }
 
-  if (response.status === 400 && /not configured/i.test(data?.message || "")) {
+  if (!response.ok || !data?.subscriptionId) {
     return false;
-  }
-
-  if (!response.ok) {
-    setAppStatus(data?.message || "Unable to start subscription.");
-    return true;
   }
 
   const checkoutKey = data.key || paymentConfig.key;
   if (!checkoutKey) {
-    setAppStatus("Payment key not configured. Please contact support.");
+    setUpgradeStatus("Payment key not configured. Please contact support.");
     return true;
   }
 
@@ -2235,13 +2253,13 @@ async function createOrderAndOpenCheckout(planId) {
       logout();
       return;
     }
-    setAppStatus(data.message || "Unable to create order.");
+    setUpgradeStatus(data.message || "Unable to create order.");
     return;
   }
 
   const checkoutKey = data.key || paymentConfig.key;
   if (!checkoutKey) {
-    setAppStatus("Payment key not configured. Please contact support.");
+    setUpgradeStatus("Payment key not configured. Please contact support.");
     return;
   }
 
