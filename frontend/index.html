@@ -182,31 +182,63 @@
       <section id="pricing" class="pricing-section">
         <div class="section-heading">
           <p class="mini-label">Pricing</p>
-          <h2>Start with free validation, then upgrade when the inbox becomes a growth channel.</h2>
-          <p class="section-subtitle">The pricing keeps the product easy to try while leaving a clear upgrade path for teams that want always-on lead handling.</p>
+          <h2>Pick the plan that matches your inbox volume.</h2>
+          <p class="section-subtitle">Start free, upgrade as your team scales. All paid plans are monthly and can be cancelled anytime.</p>
         </div>
-        <div class="pricing-grid">
-          <article class="pricing-card">
+        <div class="pricing-grid pricing-grid-4">
+          <article class="pricing-card" data-plan-id="free">
             <p class="pricing-plan">Free</p>
-            <h3 class="pricing-value">Validate the workflow</h3>
-            <p class="pricing-caption">Use it to test website and WhatsApp-style customer messages before you commit.</p>
+            <h3 class="pricing-value"><span class="pricing-amount">&#8377;0</span><span class="pricing-period">/month</span></h3>
+            <p class="pricing-caption">Validate the workflow before you commit.</p>
             <ul class="pricing-list">
-              <li>5 AI replies included</li>
-              <li>Lead capture and reply history</li>
+              <li>20 AI replies / month</li>
+              <li>Website chatbot only</li>
+              <li>Lead capture &amp; reply history</li>
               <li>Admin dashboard basics</li>
             </ul>
+            <button type="button" class="button secondary-btn pricing-cta" onclick="document.getElementById('signup-form-section')?.scrollIntoView({behavior:'smooth'}); window.location.hash='contact';">Get Started Free</button>
           </article>
-          <article class="pricing-card pricing-card-featured">
-            <span class="pricing-badge">Growth plan</span>
-            <p class="pricing-plan">Premium</p>
-            <h3 class="pricing-value">Unlock daily operations</h3>
-            <p class="pricing-caption">Use Razorpay to move into full-time usage when your team needs the tool every day.</p>
+
+          <article class="pricing-card" data-plan-id="starter">
+            <p class="pricing-plan">Starter</p>
+            <h3 class="pricing-value"><span class="pricing-amount">&#8377;499</span><span class="pricing-period">/month</span></h3>
+            <p class="pricing-caption">Get going on WhatsApp.</p>
             <ul class="pricing-list">
-              <li>Best fit for regular lead handling</li>
-              <li>Keep one account with upgraded access</li>
-              <li>Better for active support and sales teams</li>
+              <li>500 AI replies / month</li>
+              <li>WhatsApp Cloud API integration</li>
+              <li>Website chatbot + lead capture</li>
+              <li>Email support</li>
             </ul>
-            <button type="button" class="button primary-btn pricing-cta" onclick="upgradeToPremium()">Unlock Premium</button>
+            <button type="button" class="button primary-btn pricing-cta" onclick="upgradeToPlan('starter')">Upgrade to Starter</button>
+          </article>
+
+          <article class="pricing-card pricing-card-featured" data-plan-id="pro">
+            <span class="pricing-badge">Most popular</span>
+            <p class="pricing-plan">Pro</p>
+            <h3 class="pricing-value"><span class="pricing-amount">&#8377;999</span><span class="pricing-period">/month</span></h3>
+            <p class="pricing-caption">Scale your inbox.</p>
+            <ul class="pricing-list">
+              <li>2,500 AI replies / month</li>
+              <li>Instagram DM auto-reply</li>
+              <li>Follow-up automation</li>
+              <li>Conversation analytics</li>
+              <li>Priority support</li>
+            </ul>
+            <button type="button" class="button primary-btn pricing-cta" onclick="upgradeToPlan('pro')">Upgrade to Pro</button>
+          </article>
+
+          <article class="pricing-card" data-plan-id="business">
+            <p class="pricing-plan">Business</p>
+            <h3 class="pricing-value"><span class="pricing-amount">&#8377;1999</span><span class="pricing-period">/month</span></h3>
+            <p class="pricing-caption">Run the whole revenue desk.</p>
+            <ul class="pricing-list">
+              <li>Unlimited AI replies</li>
+              <li>Multi-agent workspace</li>
+              <li>CRM sync (HubSpot / Zoho / Salesforce)</li>
+              <li>Voice AI calls</li>
+              <li>Dedicated success manager</li>
+            </ul>
+            <button type="button" class="button primary-btn pricing-cta" onclick="upgradeToPlan('business')">Upgrade to Business</button>
           </article>
         </div>
       </section>
@@ -372,7 +404,7 @@
             <div class="stack-actions">
               <button type="button" class="secondary-btn" onclick="captureLead()">Save Lead</button>
               <button type="button" class="primary-btn" onclick="generateReply()">Generate Auto Reply</button>
-              <button type="button" class="ghost-btn" onclick="upgradeToPremium()">Upgrade to Premium</button>
+              <button type="button" class="ghost-btn" onclick="document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})">View Plans</button>
             </div>
 
             <div class="reply-shell">
@@ -786,6 +818,6 @@
   </section>
 
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="./script.js?v=20260510a"></script>
+  <script src="./script.js?v=20260510b"></script>
 </body>
 </html>

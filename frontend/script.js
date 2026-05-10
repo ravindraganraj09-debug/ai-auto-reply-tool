@@ -27,7 +27,9 @@ async function ensurePaymentKey() {
   return paymentConfig.key;
 }
 
-const FREE_REPLY_LIMIT = 5;
+// Fallback only — the server is authoritative and returns the active plan's
+// limit on every /me response (currentUser.replyLimit / remainingReplies).
+const FREE_REPLY_LIMIT = 20;
 
 function getApiBaseUrl() {
   const hostname = window.location.hostname;
@@ -2059,7 +2061,14 @@ async function verifyPayment(paymentResponse) {
   await refreshWorkspace();
 }
 
-async function upgradeToPremium() {
+// Plan-aware upgrade entry point used by every "Upgrade to <Plan>" button.
+async function upgradeToPlan(planId) {
+  if (!planId || planId === "free") {
+    setAppStatus("You are already on the Free plan. Sign up to start using it.");
+    window.location.hash = "contact";
+    return;
+  }
+
   if (!authToken) {
     setAppStatus("Login first to upgrade your account.");
     window.location.hash = "contact";
@@ -2067,22 +2076,34 @@ async function upgradeToPremium() {
   }
 
   if (!window.Razorpay) {
-    setAppStatus("Razorpay SDK not loaded.");
+    setAppStatus("Razorpay SDK not loaded. Refresh and try again.");
     return;
   }
 
-  setAppStatus("Opening secure Razorpay checkout...");
+  setAppStatus(`Opening secure Razorpay checkout for the ${planId} plan...`);
   try {
-    await createOrderAndOpenCheckout();
+    await createOrderAndOpenCheckout(planId);
   } catch (_error) {
     setAppStatus("Unable to open payment checkout. Please try again.");
   }
 }
 
-async function createOrderAndOpenCheckout() {
+// Backwards compatibility for any cached HTML still calling upgradeToPremium().
+async function upgradeToPremium() {
+  return upgradeToPlan("starter");
+}
+
+async function createOrderAndOpenCheckout(planId) {
   await ensurePaymentKey();
 
-  const { response, data } = await apiRequest("/create-order", { method: "POST" }, true);
+  const { response, data } = await apiRequest(
+    "/create-order",
+    {
+      method: "POST",
+      body: JSON.stringify({ planId }),
+    },
+    true
+  );
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -2105,7 +2126,7 @@ async function createOrderAndOpenCheckout() {
     currency: data.currency,
     order_id: data.orderId,
     name: "ReplyPilot",
-    description: "Premium Upgrade",
+    description: `${data.planName || "Premium"} plan (monthly)`,
     handler: async function handler(paymentResponse) {
       await verifyPayment(paymentResponse);
     },

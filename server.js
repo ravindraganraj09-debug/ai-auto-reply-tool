@@ -169,11 +169,98 @@ const FIREBASE_CLIENT_EMAIL = process.env.FIREBASE_CLIENT_EMAIL || "";
 const FIREBASE_PRIVATE_KEY = process.env.FIREBASE_PRIVATE_KEY || "";
 const MONGO_SERVER_SELECTION_TIMEOUT_MS = Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS) || 2000;
 
-const premiumPlan = {
-  amount: 19900,
-  currency: "INR",
-};
-const FREE_REPLY_LIMIT = 5;
+// Subscription catalog. Amount is in paise (INR * 100). `replyLimit: -1`
+// represents unlimited replies. Each paid plan is sold as a one-time monthly
+// payment (period: 30 days) — true auto-debit subscriptions can later be
+// layered on top of Razorpay Subscriptions API by adding `razorpayPlanId`.
+const PLANS = Object.freeze({
+  free: Object.freeze({
+    id: "free",
+    name: "Free",
+    amount: 0,
+    currency: "INR",
+    replyLimit: 20,
+    durationDays: 0,
+    paid: false,
+    tagline: "Validate the workflow",
+    features: Object.freeze([
+      "20 AI replies / month",
+      "Website chatbot only",
+      "Lead capture + reply history",
+      "Admin dashboard basics",
+    ]),
+  }),
+  starter: Object.freeze({
+    id: "starter",
+    name: "Starter",
+    amount: 49900,
+    currency: "INR",
+    replyLimit: 500,
+    durationDays: 30,
+    paid: true,
+    tagline: "Get going on WhatsApp",
+    features: Object.freeze([
+      "500 AI replies / month",
+      "WhatsApp Cloud API integration",
+      "Website chatbot + lead capture",
+      "Email support",
+    ]),
+  }),
+  pro: Object.freeze({
+    id: "pro",
+    name: "Pro",
+    amount: 99900,
+    currency: "INR",
+    replyLimit: 2500,
+    durationDays: 30,
+    paid: true,
+    tagline: "Scale your inbox",
+    features: Object.freeze([
+      "2,500 AI replies / month",
+      "Instagram DM auto-reply",
+      "Follow-up automation",
+      "Conversation analytics",
+      "Priority support",
+    ]),
+  }),
+  business: Object.freeze({
+    id: "business",
+    name: "Business",
+    amount: 199900,
+    currency: "INR",
+    replyLimit: -1,
+    durationDays: 30,
+    paid: true,
+    tagline: "Run the whole revenue desk",
+    features: Object.freeze([
+      "Unlimited AI replies",
+      "Multi-agent workspace",
+      "CRM sync (HubSpot / Zoho / Salesforce)",
+      "Voice AI calls",
+      "Dedicated success manager",
+    ]),
+  }),
+});
+
+const PUBLIC_PLAN_LIST = Object.freeze(Object.values(PLANS).map((plan) => ({
+  id: plan.id,
+  name: plan.name,
+  amount: plan.amount,
+  currency: plan.currency,
+  replyLimit: plan.replyLimit,
+  durationDays: plan.durationDays,
+  paid: plan.paid,
+  tagline: plan.tagline,
+  features: plan.features,
+})));
+
+function getPlan(planId) {
+  if (!planId) return null;
+  return PLANS[String(planId).toLowerCase()] || null;
+}
+
+const FREE_PLAN = PLANS.free;
+const FREE_REPLY_LIMIT = FREE_PLAN.replyLimit;
 const DEFAULT_AUTOMATION_SETTINGS = Object.freeze({
   websiteChatbot: true,
   whatsappAssistant: true,
@@ -832,9 +919,22 @@ function getIntegrationStatus() {
   };
 }
 
+function getActivePlanForUser(user) {
+  const planId = user.planId || (user.premium ? "starter" : "free");
+  const plan = getPlan(planId) || FREE_PLAN;
+  const expiresAt = user.premiumExpiresAt ? new Date(user.premiumExpiresAt) : null;
+  const isExpired = expiresAt && expiresAt.getTime() < Date.now();
+  return isExpired && plan.paid ? FREE_PLAN : plan;
+}
+
 function toPublicUser(user) {
-  const premiumActive = Boolean(user.premium);
   const usage = user.usage || 0;
+  const activePlan = getActivePlanForUser(user);
+  const isUnlimited = activePlan.replyLimit < 0;
+  const premiumActive = activePlan.paid;
+  const remainingReplies = isUnlimited
+    ? null
+    : Math.max(activePlan.replyLimit - usage, 0);
   const automationSettings = getAutomationSettings(user);
   const businessProfile = getUserBusinessProfile(user);
   const followupRules = getFollowupRules(user);
@@ -845,10 +945,12 @@ function toPublicUser(user) {
     email: user.email,
     publicWorkspaceId: user.publicWorkspaceId || "",
     premium: premiumActive,
-    planName: user.planName || (premiumActive ? "Premium" : "Free"),
+    planId: activePlan.id,
+    planName: activePlan.name,
+    planFeatures: activePlan.features,
     usage,
-    replyLimit: premiumActive ? null : FREE_REPLY_LIMIT,
-    remainingReplies: premiumActive ? null : Math.max(FREE_REPLY_LIMIT - usage, 0),
+    replyLimit: isUnlimited ? null : activePlan.replyLimit,
+    remainingReplies,
     lastPaymentId: user.lastPaymentId || null,
     lastOrderId: user.lastOrderId || null,
     premiumActivatedAt: user.premiumActivatedAt || null,
@@ -3278,8 +3380,11 @@ app.post("/api/reply", sensitiveRateLimiter, requireAuth, async (req, res) => {
       return res.status(404).json({ reply: "User not found." });
     }
 
-    if (!user.premium && user.usage >= FREE_REPLY_LIMIT) {
-      return res.json({ reply: "Limit reached! Upgrade to premium." });
+    const activePlan = getActivePlanForUser(user);
+    if (activePlan.replyLimit >= 0 && (user.usage || 0) >= activePlan.replyLimit) {
+      return res.json({
+        reply: `Limit reached on the ${activePlan.name} plan (${activePlan.replyLimit} replies). Please upgrade to continue.`,
+      });
     }
 
     const workspaceId = user.publicWorkspaceId || APP_WORKSPACE_ID;
@@ -3410,9 +3515,14 @@ app.get("/api/payments/config", (_req, res) => {
   }
   res.json({
     keyId: paymentConfig.key_id,
-    currency: premiumPlan.currency,
-    amount: premiumPlan.amount,
+    currency: PLANS.starter.currency,
+    plans: PUBLIC_PLAN_LIST,
   });
+});
+
+// Public plan catalog so the marketing/pricing page can render dynamically.
+app.get("/api/plans", (_req, res) => {
+  res.json({ plans: PUBLIC_PLAN_LIST });
 });
 
 app.post("/create-order", requireAuth, sensitiveRateLimiter, async (req, res) => {
@@ -3425,18 +3535,32 @@ app.post("/create-order", requireAuth, sensitiveRateLimiter, async (req, res) =>
       return res.status(503).json({ message: "Database unavailable. Try again." });
     }
 
+    // Default to the Starter plan if no planId is provided so older clients
+    // (cached browsers, mobile widgets) keep working.
+    const requestedPlanId = String(req.body?.planId || "starter").toLowerCase();
+    const plan = getPlan(requestedPlanId);
+
+    if (!plan) {
+      return res.status(400).json({ message: "Unknown plan." });
+    }
+    if (!plan.paid || plan.amount <= 0) {
+      return res.status(400).json({ message: "This plan does not require payment." });
+    }
+
     const user = await usersCollection.findOne({ _id: getUserLookupId(req.authUserId) });
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
     const order = await getRazorpayClient().orders.create({
-      amount: premiumPlan.amount,
-      currency: premiumPlan.currency,
-      receipt: `p_${Date.now()}`,
+      amount: plan.amount,
+      currency: plan.currency,
+      receipt: `p_${plan.id}_${Date.now()}`,
       payment_capture: 1,
       notes: {
         userId: String(req.authUserId),
+        planId: plan.id,
+        planName: plan.name,
       },
     });
 
@@ -3447,6 +3571,7 @@ app.post("/create-order", requireAuth, sensitiveRateLimiter, async (req, res) =>
           pendingOrderId: order.id,
           pendingOrderAmount: order.amount,
           pendingOrderCurrency: order.currency,
+          pendingOrderPlanId: plan.id,
           pendingOrderCreatedAt: new Date(),
         },
       }
@@ -3457,6 +3582,8 @@ app.post("/create-order", requireAuth, sensitiveRateLimiter, async (req, res) =>
       amount: order.amount,
       currency: order.currency,
       orderId: order.id,
+      planId: plan.id,
+      planName: plan.name,
     });
   } catch (error) {
     console.error("Create order failed:", error?.message || error);
@@ -3541,8 +3668,9 @@ app.post("/verify-payment", requireAuth, sensitiveRateLimiter, async (req, res) 
       return res.status(502).json({ message: "Could not verify payment with gateway." });
     }
 
-    const expectedAmount = user.pendingOrderAmount || premiumPlan.amount;
-    const expectedCurrency = user.pendingOrderCurrency || premiumPlan.currency;
+    const pendingPlan = getPlan(user.pendingOrderPlanId) || PLANS.starter;
+    const expectedAmount = user.pendingOrderAmount || pendingPlan.amount;
+    const expectedCurrency = user.pendingOrderCurrency || pendingPlan.currency;
     const isPaymentValid =
       payment &&
       payment.order_id === razorpay_order_id &&
@@ -3560,9 +3688,12 @@ app.post("/verify-payment", requireAuth, sensitiveRateLimiter, async (req, res) 
       return res.status(400).json({ message: "Payment could not be verified." });
     }
 
-    // Step 4: Atomically activate premium and clear pending order, but only if
-    // this payment id has never been consumed before (idempotency / replay
-    // protection).
+    // Step 4: Atomically activate the purchased plan and clear the pending
+    // order, but only if this payment id has never been consumed before
+    // (idempotency / replay protection).
+    const durationMs = Math.max(pendingPlan.durationDays || 30, 1) * 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + durationMs);
     const result = await usersCollection.updateOne(
       {
         _id: user._id,
@@ -3572,16 +3703,18 @@ app.post("/verify-payment", requireAuth, sensitiveRateLimiter, async (req, res) 
       {
         $set: {
           premium: true,
-          planName: "Premium",
+          planId: pendingPlan.id,
+          planName: pendingPlan.name,
           lastPaymentId: razorpay_payment_id,
           lastOrderId: razorpay_order_id,
-          premiumActivatedAt: new Date(),
-          premiumExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          premiumActivatedAt: now,
+          premiumExpiresAt: expiresAt,
         },
         $unset: {
           pendingOrderId: "",
           pendingOrderAmount: "",
           pendingOrderCurrency: "",
+          pendingOrderPlanId: "",
           pendingOrderCreatedAt: "",
         },
       }
@@ -3591,7 +3724,12 @@ app.post("/verify-payment", requireAuth, sensitiveRateLimiter, async (req, res) 
       return res.status(409).json({ message: "Order already processed." });
     }
 
-    res.json({ message: "Premium activated successfully." });
+    res.json({
+      message: `${pendingPlan.name} plan activated successfully.`,
+      planId: pendingPlan.id,
+      planName: pendingPlan.name,
+      expiresAt: expiresAt.toISOString(),
+    });
   } catch (error) {
     console.error("Verify payment failed:", error?.message || error);
     res.status(500).json({ message: "Internal server error." });
